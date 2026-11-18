@@ -1,29 +1,34 @@
-# Framework Control — Native Windows App
+# Framework Control for Windows
 
-A native Windows desktop app for [Framework Control](https://github.com/ozturkkl/framework-control)
-(fans, power and battery control for Framework laptops). It replaces the
-browser-based UI with a lightweight Rust app, so you no longer need Chrome or
-Edge running to use it.
+A lightweight native Windows app for controlling your Framework laptop: fan
+curves, power limits, battery charging, and live temperatures. It's also a
+launcher for your other Framework 16 tools. No browser needed.
+
+Built on [**Framework Control**](https://github.com/ozturkkl/framework-control)
+by Kemal Ozturk, which provides the background service that talks to the
+laptop's hardware. This app is a native Windows front end for it.
 
 **[⬇ Download the latest installer](https://github.com/kingof9x/framework-control-windows-naitive/releases/latest)**
 (`FrameworkControl-<version>-x64.msi`)
 
 ![Overview](docs/screenshots/overview.png)
 
-## Resource savings
+## Light on resources
 
-The upstream project opens its UI in Chrome/Edge "app mode". This fork keeps
-the same background service but draws the UI natively with
-[egui](https://github.com/emilk/egui), instead of loading a web page in
-Chromium.
+The app is a single 5.6 MB executable, written in Rust with
+[egui](https://github.com/emilk/egui). It only redraws when new readings
+arrive or when you interact with it, and closing the window stops it
+entirely. Your fan curves and power limits keep being applied in the
+background.
 
-| | Native app (this fork) | Chromium app mode (upstream UI) |
+Compared with running the same controls as a web page in Chrome/Edge app mode:
+
+| | This app | Web UI in Chromium app mode |
 |---|---|---|
-| Memory (PSS, all processes) | **104 MB**, of which ~67 MB was the software GPU driver | **491 MB** |
+| Memory (PSS, all processes) | **104 MB**, of which ~67 MB was the software GPU driver | 491 MB |
 | Processes | **1** | 10 |
 | CPU time while idle, 30 s | **1.3 s** | 3.6 s |
 | Browser required | **No** | Chrome or Edge |
-| App download | **5.6 MB** single `.exe` | browser + web assets |
 
 **About 4.7× less memory, 10× fewer processes, about 2.8× less idle CPU.**
 
@@ -32,12 +37,36 @@ machine (Linux, 1100×760 window, software OpenGL renderer since there was no
 GPU), with memory summed as PSS across each UI's process tree. On a real
 Windows laptop the GPU driver replaces the ~67 MB software renderer, so the
 app's own footprint is closer to 30–40 MB. Absolute numbers will vary; the
-ratio is the point. The background service is identical in both setups and
+ratio is the point. The background service is the same in both setups and
 isn't counted.</sub>
 
-The native app redraws only when new readings arrive (every 2 s by default)
-or when you interact with it, and closing the window stops it entirely. The
-service keeps applying your fan curves and power limits in the background.
+## Features
+
+- **Sensors**: live temperature and fan RPM graphs, with a sensor filter and
+  an adjustable sample interval.
+- **Fans**:
+  - Auto (EC), Manual and Curve modes.
+  - Drag-to-edit curve: click to add points, right-click to remove.
+  - Hysteresis, plus separate up and down rate limits.
+  - Per-fan overrides.
+  - Live duty markers once the fans are calibrated; the calibration wizard is
+    built in.
+- **Fan profiles**: create, rename, reorder and delete profiles, and switch
+  automatically when you plug in or go on battery.
+- **Power**: separate plugged-in and on-battery profiles with TDP and thermal
+  limits. The RyzenAdj helper these need installs in one click from the app.
+- **Battery**: charge limit, charge-rate limit with an SoC threshold, health,
+  cycles, live power, and up to 7 days of history.
+- **Tools**: launch your other Framework 16 tools:
+  - the [LED Matrix Monitor](https://github.com/kingof9x/led-matrix): start
+    it, or open its layout editor;
+  - the [keyboard + macropad lighting app](https://github.com/kingof9x/framework-16-keyboard-customization).
+
+  The page shows whether each tool is installed or running, and links to the
+  download when it isn't.
+- **Settings**: automatic updates, 8 themes, turning features on or off (this
+  also stops their background work), `framework_tool` version switching, the
+  service log viewer, and device info.
 
 ## Screenshots
 
@@ -46,50 +75,10 @@ service keeps applying your fan curves and power limits in the background.
 | ![Fans](docs/screenshots/fans.png) | ![Fan 2 tab](docs/screenshots/fan2.png) |
 | **Battery: charge limits and history** | **Power: TDP and thermal limits** |
 | ![Battery](docs/screenshots/battery.png) | ![Power](docs/screenshots/power.png) |
-| **Settings: updates, themes, framework_tool** | **Calibration wizard** |
-| ![Settings](docs/screenshots/settings.png) | ![Calibration](docs/screenshots/calibrate.png) |
-| **Light theme (all 8 web themes are supported)** | **Service logs** |
-| ![Light theme](docs/screenshots/light.png) | ![Logs](docs/screenshots/logs.png) |
-| **Tools: launch the LED Matrix Monitor and keyboard lighting app** | |
-| ![Tools](docs/screenshots/tools.png) | |
-
-## What's in the port
-
-Everything the upstream web UI does, natively:
-
-- **Sensors**: live temperature and fan RPM graphs with a sensor filter, and a
-  configurable sample interval.
-- **Fans**:
-  - Auto (EC), Manual and Curve modes.
-  - Drag-to-edit curve: click to add points, right-click to remove.
-  - Hysteresis, plus separate up and down rate limits.
-  - Per-fan overrides.
-  - Live duty markers once the fans are calibrated, with the calibration wizard built in.
-- **Fan profiles**: create, rename, reorder and delete profiles, and switch
-  automatically when you plug in or go on battery.
-- **Power**:
-  - Separate plugged-in and on-battery profiles.
-  - TDP and thermal limits through RyzenAdj, which installs in one click from
-    the app; EPP, governor and frequency limits on Linux.
-- **Battery**: charge limit, charge-rate limit with an SoC threshold, health,
-  cycles, live power, and up to 7 days of history.
-- **Tools**: launch your other Framework 16 tools: the
-  [LED Matrix Monitor](https://github.com/kingof9x/led-matrix) (start it or
-  open its layout editor) and the
-  [keyboard + macropad lighting app](https://github.com/kingof9x/framework-16-keyboard-customization).
-  The page shows whether each one is installed or running, and links to the
-  download when it isn't.
-- **Settings**: in-app updates, the 8 themes shared with the web UI,
-  turning features on or off (this also stops their background work),
-  `framework_tool` version switching, the service log viewer, and device info.
-
-All settings live in the service's config, so they're shared with the web UI.
-Both can be used side by side.
-
-[`tools/parity/parity.toml`](tools/parity/parity.toml) lists every upstream
-endpoint, web component and setting, and where it lives in the native app.
-The few omissions are browser-only features, such as the hosted-page version
-check and browser shortcut creation, and each one has a note explaining why.
+| **Tools: launch your other Framework 16 tools** | **Calibration wizard** |
+| ![Tools](docs/screenshots/tools.png) | ![Calibration](docs/screenshots/calibrate.png) |
+| **Settings: updates, themes, framework_tool** | **Light theme** |
+| ![Settings](docs/screenshots/settings.png) | ![Light theme](docs/screenshots/light.png) |
 
 ## Install
 
@@ -98,27 +87,28 @@ check and browser shortcut creation, and each one has a note explaining why.
    and run it.
 2. Open **Framework Control** from the Start Menu or Desktop.
 
-The installer sets up the background service and the app, plus Start Menu and
-Desktop shortcuts that open the app instead of a browser. If you already have
-upstream Framework Control installed, this installer replaces it and keeps your
-settings.
+The installer sets up the background service and the app, with Start Menu and
+Desktop shortcuts. If you already have the original Framework Control
+installed, this replaces it and keeps your settings.
+
+Windows may show a SmartScreen warning because the installer isn't
+code-signed. Choose **More info → Run anyway**.
 
 > ⚠️ **Framework 16:** BIOS 3.07 or newer is required for proper EC/fan control.
 > Install the [latest BIOS](https://knowledgebase.frame.work/en_us/framework-laptop-16-bios-and-driver-releases-amd-ryzen-7040-series-BkeqkVovp) first.
 
-A portable `framework-control-app-<version>-x64.zip`, containing just the app,
-is also attached to each release. It works with any running Framework Control
-service, including an upstream install.
+Each release also includes `framework-control-app-<version>-x64.zip`, the app
+on its own. It works with any running Framework Control service, including an
+install of the original project.
 
 ### Updates
 
 **Settings → Updates** checks this repository's
-[GitHub releases](https://github.com/kingof9x/framework-control-windows-naitive/releases)
-for a newer build. **Install** downloads the MSI and the service installs it
-silently, without a UAC prompt, keeping your settings. Turn on **Automatically
-keep up to date** to have the service check every 6 hours and install new
-releases by itself. A badge in the app header also shows when an update is
-available.
+[releases](https://github.com/kingof9x/framework-control-windows-naitive/releases)
+for a newer version. **Install** updates silently, without a UAC prompt, and
+keeps your settings. Turn on **Automatically keep up to date** to have new
+versions installed by themselves (checked every 6 hours). A badge in the app's
+header also shows when an update is available.
 
 ### Uninstall
 
@@ -129,7 +119,7 @@ service, the app, the shortcuts and the saved settings.
 
 ```
 ┌──────────────────────────┐   HTTP on 127.0.0.1   ┌────────────────────────────┐
-│ framework-control-app    │ ────────────────────▶ │ framework-control-service  │
+│ Framework Control app    │ ────────────────────▶ │ Framework Control service  │
 │ native UI (Rust + egui)  │                       │ Windows service (SYSTEM)   │
 │ only runs while open     │ ◀──────────────────── │ fan curves, power limits,  │
 └──────────────────────────┘     JSON + config     │ battery, telemetry history │
@@ -139,30 +129,40 @@ service, the app, the shortcuts and the saved settings.
                                                       Embedded controller / CPU
 ```
 
-- `service/`: upstream's Rust service. The fork changes it only slightly: the
-  update check can use a release version baked in at build time, and versions
-  are compared numerically.
-- `native/`: the desktop app. API calls happen on a background thread, so the
-  window never blocks. Edits save automatically, like the web UI.
-- `native/installer/`: the WiX MSI and `build-msi.ps1`.
-- `web/`: upstream's Svelte UI. It isn't shipped here, but it's kept as the
-  reference for feature parity.
+| Folder | What's there |
+|---|---|
+| `native/` | This app. API calls happen on a background thread, so the window never blocks, and edits save automatically. |
+| `native/installer/` | The WiX MSI definition and `build-msi.ps1`. |
+| `service/` | The background service from the original Framework Control project, with two small changes: update checks follow this repository's releases, and versions are compared numerically. |
+| `web/` | The original project's browser UI. It isn't shipped; it's kept as the reference for feature parity. |
+| `tools/parity/` | Keeps this app in step with the original project (see below). |
 
-## Staying in sync with upstream
+## Built on Framework Control
 
-Upstream keeps adding features, so the fork includes a parity tool. It's
-built so Claude (or anyone else) can run the sync:
+All the hardware control comes from
+[**Framework Control**](https://github.com/ozturkkl/framework-control) by
+[Kemal Ozturk](https://github.com/ozturkkl): the background service, the fan
+curve and power logic, and the feature design. It ships a browser-based UI and
+also supports Linux; head there for the Linux version or the web UI.
+
+This app follows that project as it adds features.
+[`tools/parity/parity.toml`](tools/parity/parity.toml) maps every feature of
+the original UI to its place in this app. The few deliberate omissions are
+browser-only features, and each has a note explaining why. To pull in new
+upstream changes:
 
 ```bash
-python3 tools/parity/parity.py upstream   # what changed upstream since the last sync, and what isn't ported
-python3 tools/parity/parity.py check      # fail if any upstream endpoint/component/setting is unaccounted for
+python3 tools/parity/parity.py upstream   # what changed upstream since the last sync, and what isn't covered yet
+python3 tools/parity/parity.py check      # fails if any upstream endpoint, component or setting is unaccounted for
 python3 tools/parity/parity.py mark-synced
 ```
 
-CI runs `check` on every push. The step-by-step sync process (merge rules,
-where each kind of change goes, how to release) is in the
-[`upstream-parity` skill](.claude/skills/upstream-parity/SKILL.md). In Claude
+CI runs `check` on every push. The full sync process is in the
+[`upstream-parity` skill](.claude/skills/upstream-parity/SKILL.md); in Claude
 Code, just ask it to "sync with upstream".
+
+If you find Framework Control useful, please
+[support the original project](https://github.com/ozturkkl/framework-control).
 
 ## Building from source
 
@@ -181,19 +181,13 @@ pwsh native/installer/build-msi.ps1   # -> native/dist/FrameworkControl-<version
 ```
 
 Releases: bump `version` in `native/Cargo.toml` and add an entry to
-`native/CHANGELOG.md`. Pushing to `main` builds the MSI and publishes the
-GitHub release ([workflow](.github/workflows/native-release.yml)).
-See [`native/README.md`](native/README.md) for app internals.
+`native/CHANGELOG.md`. Merging to `main` builds the MSI and publishes the
+GitHub release ([workflow](.github/workflows/native-release.yml)). See
+[`native/README.md`](native/README.md) for the app's internals.
 
-## Credits
+## License and disclaimer
 
-Framework Control was created by [Kemal Ozturk](https://github.com/ozturkkl).
-The service, the feature set and the original UI are theirs; this fork adds
-the native front end and the Windows packaging. If you find it useful,
-consider [supporting the upstream project](https://github.com/ozturkkl/framework-control).
-MIT licensed (see [LICENSE](LICENSE)).
-
-## Disclaimer
+MIT licensed (see [LICENSE](LICENSE)), like the original project.
 
 This software is provided "as is", without warranty of any kind, express or
 implied. By using it, you acknowledge that you are responsible for any
