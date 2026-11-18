@@ -24,8 +24,39 @@ pub fn parse_github_repo_env() -> Option<(String, String)> {
     }
 }
 
+/// Version compared against GitHub release tags. Builds that publish under a
+/// different release line (e.g. a fork that bundles extra apps) bake their own
+/// via `FRAMEWORK_CONTROL_RELEASE_VERSION`; otherwise the crate version is used.
+pub fn release_version() -> &'static str {
+    option_env!("FRAMEWORK_CONTROL_RELEASE_VERSION")
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or(env!("CARGO_PKG_VERSION"))
+}
+
+/// Numeric semver-ish comparison ("1.10.0" > "1.9.0"); pre-release suffixes are ignored.
+pub fn is_newer(latest: &str, current: &str) -> bool {
+    fn parts(v: &str) -> Vec<u64> {
+        v.trim()
+            .trim_start_matches('v')
+            .split(['-', '+'])
+            .next()
+            .unwrap_or("")
+            .split('.')
+            .map(|p| p.parse().unwrap_or(0))
+            .collect()
+    }
+    let (a, b) = (parts(latest), parts(current));
+    for i in 0..a.len().max(b.len()) {
+        let (x, y) = (a.get(i).copied().unwrap_or(0), b.get(i).copied().unwrap_or(0));
+        if x != y {
+            return x > y;
+        }
+    }
+    false
+}
+
 pub async fn get_current_and_latest() -> Result<(String, String), String> {
-    let current = env!("CARGO_PKG_VERSION").to_string();
+    let current = release_version().to_string();
     let current_trimmed = current.trim().to_string();
     if current_trimmed.is_empty() {
         return Err("current version missing".into());
@@ -157,7 +188,7 @@ pub async fn check_and_apply_now() -> Result<bool, String> {
         return Err("FRAMEWORK_CONTROL_UPDATE_REPO not set".into());
     };
     let (current, latest) = get_current_and_latest().await?;
-    if latest <= current {
+    if !is_newer(&latest, &current) {
         return Ok(false);
     }
     #[cfg(target_os = "windows")]
@@ -204,5 +235,19 @@ pub async fn check_and_apply_now() -> Result<bool, String> {
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         Err("update apply unsupported on this OS".into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_newer;
+
+    #[test]
+    fn compares_numerically() {
+        assert!(is_newer("1.10.0", "1.9.0"));
+        assert!(is_newer("v1.0.1", "1.0.0"));
+        assert!(!is_newer("1.0.0", "1.0.0"));
+        assert!(!is_newer("0.5.5", "1.0.0"));
+        assert!(is_newer("1.1", "1.0.9"));
     }
 }

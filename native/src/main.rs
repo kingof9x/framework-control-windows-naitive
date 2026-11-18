@@ -9,9 +9,15 @@
 
 mod api;
 mod app;
+mod calibration;
 mod demo;
+mod pages;
+mod plots;
 mod state;
+mod task;
 mod theme;
+mod version;
+mod widgets;
 
 use std::sync::Arc;
 
@@ -60,6 +66,14 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Framework Control",
         options,
-        Box::new(move |cc| Ok(Box::new(app::App::new(cc, backend, page.as_deref())))),
+        Box::new(move |cc| {
+            let mut app = app::App::new(cc, backend, page.as_deref());
+            if demo {
+                if let Ok(scene) = std::env::var("FC_DEMO_SCENE") {
+                    app.scene(&scene, &cc.egui_ctx);
+                }
+            }
+            Ok(Box::new(app))
+        }),
     )
 }

@@ -29,9 +29,12 @@ fn noise(seed: f64) -> f64 {
 
 impl DemoBackend {
     pub fn new() -> Self {
-        let curve = CurveConfig {
-            sensors: vec!["APU".into(), "CPU".into()],
-            ..Default::default()
+        let curve = GlobalCurveConfig {
+            curve: CurveConfig {
+                sensors: vec!["APU".into(), "CPU".into()],
+                ..Default::default()
+            },
+            poll_ms: 2000,
         };
         let config = Config {
             fan: FanControlConfig {
@@ -48,14 +51,27 @@ impl DemoBackend {
                         id: "quiet".into(),
                         name: "Quiet".into(),
                         mode: FanMode::Curve,
-                        curve: Some(CurveConfig {
-                            points: vec![[50, 0], [70, 25], [82, 60], [92, 100]],
-                            ..curve
+                        curve: Some(GlobalCurveConfig {
+                            curve: CurveConfig {
+                                points: vec![[50, 0], [70, 25], [82, 60], [92, 100]],
+                                ..curve.curve
+                            },
+                            poll_ms: 2000,
                         }),
                         ..Default::default()
                     },
                 ],
                 active_profile: "default".into(),
+                auto_switch: AutoSwitch { ac: Some("default".into()), battery: Some("quiet".into()) },
+                calibration: Some(FanCalibration {
+                    updated_at: 0,
+                    fans: (0..2)
+                        .map(|i| PerFanCalibration {
+                            index: i,
+                            points: vec![[0, 0], [20, 1100], [40, 2150], [60, 3200], [80, 4200], [100, 5200]],
+                        })
+                        .collect(),
+                }),
                 ..Default::default()
             },
             power: PowerConfig {
@@ -230,6 +246,52 @@ impl Backend for DemoBackend {
         }
         *cfg = serde_json::from_value(current).map_err(|e| e.to_string())?;
         Ok(cfg.clone())
+    }
+
+    fn thermal_now(&self) -> ApiResult<ThermalNow> {
+        let s = self.sample_at(now_ms());
+        Ok(ThermalNow {
+            temps: s.temps,
+            fans: s
+                .rpms
+                .iter()
+                .enumerate()
+                .map(|(i, r)| FanReading { name: format!("Fan {}", i + 1), rpm: *r })
+                .collect(),
+        })
+    }
+
+    fn apply_update(&self) -> ApiResult<()> {
+        Err("demo mode: no updates to install".into())
+    }
+
+    fn install_ryzenadj(&self) -> ApiResult<()> {
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        Ok(())
+    }
+
+    fn uninstall_ryzenadj(&self) -> ApiResult<()> {
+        Ok(())
+    }
+
+    fn framework_tool_versions(&self) -> ApiResult<FrameworkToolVersions> {
+        Ok(FrameworkToolVersions {
+            current_version: Some("0.4.5".into()),
+            latest_tag: Some("v0.4.5".into()),
+            available_tags: vec!["v0.4.5".into(), "v0.4.4".into(), "v0.4.3".into()],
+        })
+    }
+
+    fn switch_framework_tool(&self, _version: Option<String>) -> ApiResult<()> {
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        Ok(())
+    }
+
+    fn logs(&self) -> ApiResult<String> {
+        Ok((0..40)
+            .map(|i| format!("INFO framework_control_service::tasks::telemetry: sample {i} collected"))
+            .collect::<Vec<_>>()
+            .join("\n"))
     }
 
     fn describe(&self) -> String {

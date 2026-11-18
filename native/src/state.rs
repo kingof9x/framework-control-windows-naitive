@@ -25,6 +25,9 @@ pub struct Snapshot {
     pub config_rev: u64,
     /// Result of the most recent write (message, is_error).
     pub write_status: Option<(String, bool)>,
+    /// Number of `Cmd::Patch` requests the poller has finished (ok or not).
+    /// The UI compares this to how many it sent before trusting server config.
+    pub writes_applied: u64,
 }
 
 pub enum Cmd {
@@ -123,6 +126,7 @@ fn run(backend: Arc<dyn Backend>, shared: Shared, rx: Receiver<Cmd>, ctx: eframe
                         }
                         Err(e) => s.write_status = Some((format!("Save failed: {e}"), true)),
                     }
+                    s.writes_applied += 1;
                     drop(s);
                     ctx.request_repaint();
                 }
