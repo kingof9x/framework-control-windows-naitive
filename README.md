@@ -50,6 +50,8 @@ service keeps applying your fan curves and power limits in the background.
 | ![Settings](docs/screenshots/settings.png) | ![Calibration](docs/screenshots/calibrate.png) |
 | **Light theme (all 8 web themes are supported)** | **Service logs** |
 | ![Light theme](docs/screenshots/light.png) | ![Logs](docs/screenshots/logs.png) |
+| **Tools: launch the LED Matrix Monitor and keyboard lighting app** | |
+| ![Tools](docs/screenshots/tools.png) | |
 
 ## What's in the port
 
@@ -71,6 +73,12 @@ Everything the upstream web UI does, natively:
     the app; EPP, governor and frequency limits on Linux.
 - **Battery**: charge limit, charge-rate limit with an SoC threshold, health,
   cycles, live power, and up to 7 days of history.
+- **Tools**: launch your other Framework 16 tools: the
+  [LED Matrix Monitor](https://github.com/kingof9x/led-matrix) (start it or
+  open its layout editor) and the
+  [keyboard + macropad lighting app](https://github.com/kingof9x/framework-16-keyboard-customization).
+  The page shows whether each one is installed or running, and links to the
+  download when it isn't.
 - **Settings**: in-app updates, the 8 themes shared with the web UI,
   turning features on or off (this also stops their background work),
   `framework_tool` version switching, the service log viewer, and device info.

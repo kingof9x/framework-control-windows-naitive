@@ -3,6 +3,18 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.1.0
+
+- New **Tools** page that launches your other Framework 16 tools:
+  - **LED Matrix Monitor** (led_mon): *Start monitor* and *Edit layout*.
+  - **Framework 16 Lights** (keyboard + macropad lighting): *Open*.
+- Finds each tool in its usual install location, shows whether it's running
+  (led_mon can't run twice, so *Start monitor* waits until it isn't), offers a
+  download link when a tool is missing, and lets you browse to a different
+  copy. Your choice is remembered per user.
+- The Tools page works even when the background service isn't running.
+- Synced with upstream Framework Control 0.5.5.
+
 ## 1.0.0
 
 - Native Windows app (Rust + egui) replaces the browser UI: about 5× less
