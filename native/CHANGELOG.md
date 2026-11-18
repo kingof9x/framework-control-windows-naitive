@@ -3,6 +3,19 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.3.1
+
+- Fixed **Install update** in Settings: the update never finished. The
+  service started the installer as its own child process, and when the
+  installer stopped the service to replace its files, the installer was
+  ended along with it and the update rolled back. The installer now runs on
+  its own (through Windows Task Scheduler) and writes a log to
+  `%ProgramData%\FrameworkControl\update-install.log`.
+- After you click **Install update**, Framework Control now closes and
+  reopens by itself once the update is done.
+- **To get this fix from 1.3.0 or earlier**, download and run the 1.3.1
+  installer once by hand; in-app updates work from then on.
+
 ## 1.3.0
 
 - New look that matches **White Rabbit** and the Windows 11 Settings app:

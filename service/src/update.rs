@@ -69,26 +69,80 @@ pub async fn get_current_and_latest() -> Result<(String, String), String> {
     Ok((current_trimmed, latest))
 }
 
+/// Name of the one-off scheduled task that runs the installer (see `spawn_msiexec_install`).
+#[cfg(target_os = "windows")]
+const UPDATE_TASK: &str = "FrameworkControlUpdate";
+
 #[cfg(target_os = "windows")]
 async fn spawn_msiexec_install(msi_url: &str) -> Result<(), String> {
-    let tmp = std::env::temp_dir().join("framework-control-update.msi");
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    // Somewhere stable without spaces (SYSTEM's temp folder can be cleaned mid-install).
+    let dir = std::path::PathBuf::from(std::env::var("PROGRAMDATA").unwrap_or_else(|_| r"C:\ProgramData".into()))
+        .join("FrameworkControl");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create {}: {e}", dir.display()))?;
+    let msi = dir.join("update.msi");
+    let log = dir.join("update-install.log");
+
     let resp = reqwest::get(msi_url.to_string())
         .await
-        .map_err(|_| "failed to download msi".to_string())?;
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| format!("failed to download msi: {e}"))?;
     let bytes = resp.bytes().await.map_err(|_| "failed to read msi bytes".to_string())?;
-    std::fs::write(&tmp, &bytes).map_err(|_| "failed to write msi".to_string())?;
-    tokio::process::Command::new("msiexec")
-        // install
-        .arg("/i")
-        .arg(tmp.as_os_str())
-        // preserve user's original shortcut choice by installing only core feature
-        .arg("ADDLOCAL=Binaries")
-        // quiet
-        .arg("/qn")
-        // no restart
-        .arg("/norestart")
-        .spawn()
-        .map(|_| ())
+    std::fs::write(&msi, &bytes).map_err(|_| "failed to write msi".to_string())?;
+
+    // ADDLOCAL=Binaries keeps the user's original feature choice; /l*v leaves a log for troubleshooting.
+    let msiexec = format!(
+        "msiexec.exe /i {} ADDLOCAL=Binaries /qn /norestart /l*v {}",
+        msi.display(),
+        log.display()
+    );
+
+    // The installer must not run as our child process: it stops this service to replace its files, and
+    // the service wrapper (WinSW) then ends the service's whole process tree, which would kill msiexec
+    // half way and roll the update back. A one-off scheduled task runs it from Task Scheduler instead.
+    // schtasks /TR is a single string; keep it simple by only using it when the paths need no quoting.
+    let plain_paths = !msi.display().to_string().contains(' ') && !log.display().to_string().contains(' ');
+    if plain_paths {
+        let created = std::process::Command::new("schtasks")
+            .args(["/Create", "/TN", UPDATE_TASK, "/TR", &msiexec, "/SC", "ONCE", "/ST", "00:00", "/RU", "SYSTEM", "/RL", "HIGHEST", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+        match created {
+            Ok(out) if out.status.success() => {
+                let ran = std::process::Command::new("schtasks")
+                    .args(["/Run", "/TN", UPDATE_TASK])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .output();
+                match ran {
+                    Ok(out) if out.status.success() => {
+                        info!("update: installer started from Task Scheduler (log: {})", log.display());
+                        return Ok(());
+                    }
+                    Ok(out) => error!("update: schtasks /Run failed: {}", String::from_utf8_lossy(&out.stderr).trim()),
+                    Err(e) => error!("update: schtasks /Run failed: {e}"),
+                }
+            }
+            Ok(out) => error!("update: schtasks /Create failed: {}", String::from_utf8_lossy(&out.stderr).trim()),
+            Err(e) => error!("update: schtasks unavailable: {e}"),
+        }
+    }
+
+    // Fallback: start msiexec through cmd's `start`, detached and (if allowed) outside our job object, so
+    // it is no longer part of the service's process tree once cmd exits.
+    const DETACHED_PROCESS: u32 = 0x0000_0008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+    let start = |flags: u32| {
+        std::process::Command::new("cmd.exe")
+            .raw_arg(format!("/c start \"\" /b {msiexec}"))
+            .creation_flags(flags)
+            .spawn()
+    };
+    start(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB)
+        .or_else(|_| start(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW))
+        .map(|_| info!("update: installer started detached (log: {})", log.display()))
         .map_err(|e| e.to_string())
 }
 

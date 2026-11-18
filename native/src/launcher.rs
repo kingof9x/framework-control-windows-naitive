@@ -186,6 +186,39 @@ pub fn launch(exe: &Path, args: &[&str]) -> Result<(), String> {
     cmd.spawn().map(|_| ()).map_err(|e| format!("Couldn't start {}: {e}", exe.display()))
 }
 
+/// After an update has started: reopen this app once the installer has replaced its exe.
+///
+/// A hidden PowerShell watcher waits (up to 10 minutes) for the exe's timestamp to change, then
+/// starts it. It's PowerShell rather than a copy of this exe so nothing holds the file the installer
+/// needs to replace.
+pub fn reopen_after_update() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        let path = exe.display().to_string().replace('\'', "''");
+        let script = format!(
+            "$exe='{path}'; $old=(Get-Item -LiteralPath $exe).LastWriteTimeUtc; $end=(Get-Date).AddMinutes(10); \
+             while ((Get-Date) -lt $end) {{ Start-Sleep -Seconds 2; \
+               try {{ if ((Get-Item -LiteralPath $exe -ErrorAction Stop).LastWriteTimeUtc -ne $old) \
+                 {{ Start-Sleep -Seconds 5; Start-Process -FilePath $exe; break }} }} catch {{ }} }}"
+        );
+        Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", &script])
+            .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = exe;
+        Err("only supported on Windows".into())
+    }
+}
+
 /// Native file picker for an exe (Windows); elsewhere there is no picker.
 pub fn browse_for(tool: &ToolDef) -> Option<PathBuf> {
     #[cfg(windows)]

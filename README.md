@@ -117,6 +117,11 @@ keeps your settings. Turn on **Automatically keep up to date** to have new
 versions installed by themselves (checked every 6 hours). A badge in the app's
 header also shows when an update is available.
 
+If an update doesn't install, the installer's log is at
+`%ProgramData%\FrameworkControl\update-install.log`, and **Settings → Service
+logs** shows what the service did. Running the latest installer by hand always
+works too.
+
 ### Uninstall
 
 Uninstall **Framework Control** from Settings → Apps. This removes the

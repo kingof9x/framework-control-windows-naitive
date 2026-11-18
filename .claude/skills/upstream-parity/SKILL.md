@@ -48,8 +48,11 @@ config field to its native equivalent (or records why it's omitted).
      usually belong to the web UI or Linux packaging; delete those too.
    - `service/Cargo.toml`: keep `default = []` (the `embed-ui` feature needs
      the removed `web/dist`).
-   - `service/src/update.rs`: keep `release_version()` and `is_newer()`
-     (the fork's MSI version comes from `native/Cargo.toml`).
+   - `service/src/update.rs`: keep `release_version()`, `is_newer()` (the
+     fork's MSI version comes from `native/Cargo.toml`) and the Windows
+     `spawn_msiexec_install` that runs msiexec through Task Scheduler. Running
+     it as the service's child gets it killed when the installer stops the
+     service (WinSW ends the process tree), so updates silently roll back.
    - `README.md`, `CLAUDE.md`: keep the fork's.
    - Everything else under `service/`: take upstream.
 
