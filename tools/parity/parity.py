@@ -4,9 +4,11 @@
 Commands
   check [--ref REF]     Verify every upstream API operation, web UI file and
                         config field is accounted for (ported, omitted with a
-                        reason, or mirrored in native/src/api.rs). Defaults to
-                        the working tree; --ref checks another git ref (e.g.
-                        the fetched upstream) without checking it out.
+                        reason, or mirrored in native/src/api.rs). By default
+                        the service comes from the working tree and the web UI
+                        (which this repo doesn't keep) from upstream at the
+                        synced commit; --ref reads both from another git ref,
+                        e.g. the fetched upstream head.
   upstream              Fetch upstream, list what changed since the last
                         synced commit, and run `check` against upstream's tree
                         so new endpoints/components/settings show up as gaps.
@@ -106,9 +108,23 @@ def config_fields(tree: Tree) -> list[str]:
 
 # ---------------------------------------------------------------- check ---
 
+def ensure_commit(manifest: dict, sha: str) -> None:
+    """Make an upstream commit available locally (CI checkouts are shallow)."""
+    if subprocess.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=ROOT, capture_output=True).returncode == 0:
+        return
+    git("fetch", "--quiet", "--depth=1", manifest["upstream"]["repo"], sha)
+
+
 def check(ref: str | None, quiet: bool = False) -> int:
     manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
     tree = Tree(ref)
+    # This repo doesn't ship the web UI, so read it from upstream at the synced commit.
+    if ref is None:
+        synced = manifest["upstream"]["synced_commit"]
+        ensure_commit(manifest, synced)
+        web_tree = Tree(synced)
+    else:
+        web_tree = tree
     native_api = NATIVE_API.read_text(encoding="utf-8")
     native_fields = set(re.findall(r"pub (\w+):", native_api))
     gaps: list[str] = []
@@ -130,7 +146,7 @@ def check(ref: str | None, quiet: bool = False) -> int:
 
     # Web UI files
     web = manifest.get("web", {})
-    files = web_files(tree)
+    files = web_files(web_tree)
     for f in files:
         entry = web.get(f)
         if entry is None:
@@ -149,7 +165,7 @@ def check(ref: str | None, quiet: bool = False) -> int:
         if field not in native_fields:
             gaps.append(f"CFG  {qual} is not modelled in native/src/api.rs (add it, or list it in [config_ignore])")
 
-    where = ref or "working tree"
+    where = ref or f"working tree (web UI from upstream {manifest['upstream']['synced_commit'][:12]})"
     if not quiet or gaps:
         print(f"Parity check against {where}: {len(ops)} API operations, {len(files)} web files, "
               f"{len(config_fields(tree))} config fields.")

@@ -1,7 +1,7 @@
 # Upstream feature-parity manifest for the native app.
 #
-# Every upstream API operation, web UI source file and config field must be
-# listed here (or, for config fields, mirrored in native/src/api.rs).
+# Every upstream API operation, web UI source file (read from upstream git;
+# this repo doesn't keep web/) and config field must be listed here (or, for config fields, mirrored in native/src/api.rs).
 # `tools/parity/parity.py check` fails when something new appears upstream
 # that isn't accounted for, so ports don't silently fall behind.
 #
