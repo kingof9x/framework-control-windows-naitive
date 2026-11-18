@@ -19,17 +19,19 @@ pub enum Page {
     Fans,
     Power,
     Battery,
+    Tools,
     Settings,
 }
 
 impl Page {
-    const ALL: [Page; 5] = [Page::Overview, Page::Fans, Page::Power, Page::Battery, Page::Settings];
+    const ALL: [Page; 6] = [Page::Overview, Page::Fans, Page::Power, Page::Battery, Page::Tools, Page::Settings];
     fn label(self) -> &'static str {
         match self {
             Page::Overview => "Overview",
             Page::Fans => "Fans",
             Page::Power => "Power",
             Page::Battery => "Battery",
+            Page::Tools => "Tools",
             Page::Settings => "Settings",
         }
     }
@@ -39,6 +41,7 @@ impl Page {
             Page::Fans => "✳",
             Page::Power => "⚡",
             Page::Battery => "▮",
+            Page::Tools => "⚒",
             Page::Settings => "⚙",
         }
     }
@@ -49,7 +52,7 @@ impl Page {
             Page::Fans => Some(PanelId::Fan),
             Page::Power => Some(PanelId::Power),
             Page::Battery => Some(PanelId::Battery),
-            Page::Settings => None,
+            Page::Tools | Page::Settings => None,
         }
     }
 }
@@ -95,6 +98,7 @@ pub struct App {
     pub fans: pages::fans::FansUi,
     pub power: pages::power::PowerUi,
     pub settings: pages::settings::SettingsUi,
+    pub tools: pages::tools::ToolsUi,
     pub close_at: Option<Instant>,
 }
 
@@ -107,6 +111,7 @@ impl App {
             "fans" => Page::Fans,
             "power" => Page::Power,
             "battery" => Page::Battery,
+            "tools" => Page::Tools,
             "settings" => Page::Settings,
             _ => Page::Overview,
         };
@@ -122,6 +127,7 @@ impl App {
             fans: Default::default(),
             power: Default::default(),
             settings: Default::default(),
+            tools: Default::default(),
             close_at: None,
         }
     }
@@ -254,7 +260,8 @@ impl eframe::App for App {
             .frame(egui::Frame::new().inner_margin(Margin::same(16)).fill(ctx.style().visuals.extreme_bg_color))
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                    if !snap.connected && snap.health.is_none() {
+                    // Tools don't need the service, so they stay usable while it's down.
+                    if !snap.connected && snap.health.is_none() && self.page != Page::Tools {
                         disconnected(ui, &snap, &self.source);
                         return;
                     }
@@ -270,6 +277,7 @@ impl eframe::App for App {
                         Page::Fans => pages::fans::show(self, ui, &snap),
                         Page::Power => pages::power::show(self, ui, &snap),
                         Page::Battery => pages::battery::show(self, ui, &snap),
+                        Page::Tools => pages::tools::show(self, ui),
                         Page::Settings => pages::settings::show(self, ui, &snap),
                     }
                 });

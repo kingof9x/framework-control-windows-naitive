@@ -43,7 +43,8 @@ FC_DEMO_SCENE=calibrate cargo run -- --demo --page fans
 | `src/state.rs` | Background poller thread: fetches data, applies config patches, wakes the UI only on new data |
 | `src/task.rs` | One-off background jobs (installs, log fetches) |
 | `src/app.rs` | Window shell, navigation, feature toggles, autosaving drafts |
-| `src/pages/*.rs` | Overview, Fans, Power, Battery, Settings |
+| `src/pages/*.rs` | Overview, Fans, Power, Battery, Tools, Settings |
+| `src/launcher.rs` | Companion tools (LED Matrix Monitor, Framework 16 Lights): where to find them, running check, launching, remembered locations (`%APPDATA%\FrameworkControl\native-app.json`) |
 | `src/plots.rs` | Graphs and the interactive fan-curve editor |
 | `src/calibration.rs` | Fan calibration wizard (same procedure as the web UI) |
 | `src/theme.rs` | Native versions of the web UI's 8 DaisyUI themes |

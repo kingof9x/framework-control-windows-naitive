@@ -11,6 +11,7 @@ mod api;
 mod app;
 mod calibration;
 mod demo;
+mod launcher;
 mod pages;
 mod plots;
 mod state;
@@ -25,7 +26,7 @@ const DEFAULT_PORT: u16 = 8090;
 
 fn usage() -> ! {
     eprintln!(
-        "framework-control-app [--port <n>] [--demo] [--page overview|fans|power|battery|settings]\n\n\
+        "framework-control-app [--port <n>] [--demo] [--page overview|fans|power|battery|tools|settings]\n\n\
          --port   Port of the local Framework Control service (default: $FRAMEWORK_CONTROL_PORT or {DEFAULT_PORT})\n\
          --demo   Use built-in sample data instead of the service"
     );
