@@ -1,0 +1,250 @@
+# Upstream feature-parity manifest for the native app.
+#
+# Every upstream API operation, web UI source file and config field must be
+# listed here (or, for config fields, mirrored in native/src/api.rs).
+# `tools/parity/parity.py check` fails when something new appears upstream
+# that isn't accounted for, so ports don't silently fall behind.
+#
+# status = "ported"   -> implemented in the native app (`native` says where)
+#          "omitted"  -> deliberately not ported (`note` says why)
+#          "internal" -> web-only plumbing with no user-visible feature
+
+[upstream]
+repo = "https://github.com/ozturkkl/framework-control"
+branch = "main"
+# Last upstream commit whose changes have been reviewed and ported.
+synced_commit = "b29db7376449a635c84a39e6922d496d92e94436"
+synced_version = "0.5.5"
+
+# ---------------------------------------------------------------- API ---
+# Keyed by operation_id in service/src/routes.rs.
+
+[api.health]
+status = "ported"
+native = "native/src/state.rs (poller), header status dot"
+
+[api.getPower]
+status = "ported"
+native = "native/src/pages/power.rs, battery.rs, overview.rs"
+
+[api.getThermal]
+status = "ported"
+native = "native/src/calibration.rs (live RPM during calibration)"
+
+[api.getThermalHistory]
+status = "ported"
+native = "native/src/pages/overview.rs, fans.rs"
+
+[api.getBatteryHistory]
+status = "ported"
+native = "native/src/pages/battery.rs"
+
+[api.getVersions]
+status = "ported"
+native = "header + Settings > Device"
+
+[api.getConfig]
+status = "ported"
+native = "native/src/state.rs (polled every 5 s)"
+
+[api.setConfig]
+status = "ported"
+native = "native/src/app.rs autosave + Settings"
+
+[api.getConfigEvents]
+status = "omitted"
+note = "SSE multi-tab sync; the native app polls /config every 5 s instead."
+
+[api.getSystemInfo]
+status = "ported"
+native = "Settings > Device"
+
+[api.checkUpdate]
+status = "ported"
+native = "Settings > Updates, header badge"
+
+[api.applyUpdate]
+status = "ported"
+native = "Settings > Updates > Install"
+
+[api.installRyzenadj]
+status = "ported"
+native = "native/src/pages/power.rs"
+
+[api.uninstallRyzenadj]
+status = "ported"
+native = "native/src/pages/power.rs"
+
+[api.getFrameworkToolVersions]
+status = "ported"
+native = "Settings > framework_tool version"
+
+[api.switchFrameworkToolVersion]
+status = "ported"
+native = "Settings > framework_tool version"
+
+[api.getLogs]
+status = "ported"
+native = "Settings > Logs window"
+
+[api.getShortcutsStatus]
+status = "omitted"
+note = "The MSI creates Start Menu/Desktop shortcuts to the native app."
+
+[api.createShortcuts]
+status = "omitted"
+note = "Creates browser app-mode shortcuts; the MSI makes native shortcuts instead."
+
+# ---------------------------------------------------------- Web UI ---
+# Keyed by file name under web/src (components/*.svelte, lib/*.ts, root).
+
+[web."App.svelte"]
+status = "ported"
+native = "native/src/app.rs (shell, nav, feature toggles)"
+
+[web."main.ts"]
+status = "internal"
+
+[web."vite-env.d.ts"]
+status = "internal"
+
+[web."svelte.d.ts"]
+status = "internal"
+
+[web."app.css"]
+status = "internal"
+
+[web."AnnouncementModal.svelte"]
+status = "omitted"
+note = "Upstream's 'what's new' popup; fork release notes live on GitHub releases."
+
+[web."BatteryControl.svelte"]
+status = "ported"
+native = "native/src/pages/battery.rs"
+
+[web."BatteryGraph.svelte"]
+status = "ported"
+native = "native/src/plots.rs battery_plot + history interval"
+
+[web."CalibrationModal.svelte"]
+status = "ported"
+native = "native/src/calibration.rs"
+
+[web."DashboardLayoutMenu.svelte"]
+status = "ported"
+native = "Settings > Features (enable/disable). Order/size are web layout only."
+
+[web."DeviceHeader.svelte"]
+status = "ported"
+native = "header (model) + Settings > Device"
+
+[web."FanControl.svelte"]
+status = "ported"
+native = "native/src/pages/fans.rs, plots.rs curve_editor"
+
+[web."FanProfileMenu.svelte"]
+status = "ported"
+native = "native/src/pages/fans.rs profile_bar"
+
+[web."FanSelector.svelte"]
+status = "ported"
+native = "native/src/pages/fans.rs fan tabs"
+
+[web."GraphPanel.svelte"]
+status = "internal"
+
+[web."LogsModal.svelte"]
+status = "ported"
+native = "native/src/pages/settings.rs windows()"
+
+[web."MultiSelect.svelte"]
+status = "ported"
+native = "sensor checkboxes / overview sensor filter"
+
+[web."Panel.svelte"]
+status = "internal"
+
+[web."PowerControl.svelte"]
+status = "ported"
+native = "native/src/pages/power.rs"
+
+[web."Sensors.svelte"]
+status = "ported"
+native = "native/src/pages/overview.rs + Settings > sensor sample interval"
+
+[web."SettingsModal.svelte"]
+status = "ported"
+native = "native/src/pages/settings.rs (no 'pause updates': it was a browser-local flag)"
+
+[web."ShortcutInstaller.svelte"]
+status = "omitted"
+note = "Installer creates native shortcuts."
+
+[web."UiControlCard.svelte"]
+status = "internal"
+
+[web."VersionMismatchModal.svelte"]
+status = "omitted"
+note = "Only for the hosted GitHub Pages UI talking to an older local service."
+
+[web."announcement.ts"]
+status = "omitted"
+note = "See AnnouncementModal."
+
+[web."config.ts"]
+status = "ported"
+native = "native/src/api.rs + state.rs"
+
+[web."device.ts"]
+status = "ported"
+native = "header model name"
+
+[web."measureHeight.ts"]
+status = "internal"
+
+[web."measureSize.ts"]
+status = "internal"
+
+[web."platform.ts"]
+status = "ported"
+native = "native/src/pages/power.rs is_windows"
+
+[web."plot.ts"]
+status = "internal"
+
+[web."portal.ts"]
+status = "internal"
+
+[web."semver.ts"]
+status = "ported"
+native = "native/src/version.rs"
+
+[web."seriesColors.ts"]
+status = "ported"
+native = "native/src/theme.rs series"
+
+[web."spline.ts"]
+status = "ported"
+native = "FanCalibration::duty_for_rpm (piecewise linear instead of cubic spline)"
+
+[web."themes.ts"]
+status = "ported"
+native = "native/src/theme.rs"
+
+[web."tooltip.ts"]
+status = "internal"
+
+[web."utils.ts"]
+status = "internal"
+
+# ---------------------------------------------------------- Config ---
+# Config fields (service/src/types.rs) that the native types in
+# native/src/api.rs intentionally don't model. They still round-trip through
+# `extra` maps or aren't sent at all.
+
+[config_ignore]
+"Config.version" = "Schema version; preserved via Config.extra."
+"UiConfig.announcements" = "Web 'what's new' state; preserved via UiConfig.extra."
+"AnnouncementsConfig.*" = "See UiConfig.announcements."
+"FanControlPatch.*" = "Request type; the native app sends JSON patches."
+"PartialConfig.*" = "Request type; the native app sends JSON patches."

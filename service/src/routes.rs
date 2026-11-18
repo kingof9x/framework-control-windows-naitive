@@ -215,7 +215,7 @@ impl Api {
     async fn check_update(&self) -> ApiResult<UpdateCheck> {
         if !crate::update::updates_enabled() {
             info!("FRAMEWORK_CONTROL_UPDATE_REPO not set; in-app updates disabled");
-            let current = env!("CARGO_PKG_VERSION").trim().to_string();
+            let current = crate::update::release_version().trim().to_string();
             return Ok(Json(UpdateCheck {
                 current_version: current.clone(),
                 latest_version: current,

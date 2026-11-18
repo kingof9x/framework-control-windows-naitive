@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   read-version:
+    # Upstream release pipeline; forks publish through native-release.yml instead.
+    if: github.repository == 'ozturkkl/framework-control'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.read_version.outputs.version }}
