@@ -1,211 +1,195 @@
-# Framework Control
+# Framework Control — Native Windows App
 
-A local lightweight Linux/Windows service with a Svelte web UI for Framework devices (Laptop 12, 13, 16, and Desktop). It exposes a loopback HTTP API to monitor telemetry and tweak fans, power, and charging, including auto, manual, and curve fan control with hysteresis, rate limiting, a live RPM overlay, and calibration.
+A native Windows desktop app for [Framework Control](https://github.com/ozturkkl/framework-control)
+(fans, power and battery control for Framework laptops). It replaces the
+browser-based UI with a lightweight Rust app, so you no longer need Chrome or
+Edge running to use it.
 
-## How To Use
+**[⬇ Download the latest installer](https://github.com/kingof9x/framework-control-windows-naitive/releases/latest)**
+(`FrameworkControl-<version>-x64.msi`)
 
-> ⚠️ **Warning (Framework 16)**
-> At minimum BIOS 3.07 is required for proper EC/fan control behavior.
-> Install the [latest BIOS](https://knowledgebase.frame.work/en_us/framework-laptop-16-bios-and-driver-releases-amd-ryzen-7040-series-BkeqkVovp) before using this tool or it won't work.
-<img width="0" height="0" alt="image" src="https://github.com/user-attachments/assets/61fe424b-1c2b-4897-987a-28042721726d" />
+![Overview](docs/screenshots/overview.png)
 
-https://github.com/user-attachments/assets/5d7c07c2-83cc-4b82-b685-df5f86318597
+## Resource savings
 
-1. Open the web app: [https://ozturkkl.github.io/framework-control/](https://ozturkkl.github.io/framework-control/)
-2. Install the background service that allows the web app to talk to the low level CLI (download link provided in the web app)
-3. Launch via Start Menu/Desktop shortcuts or visit the local service URL in your browser (check installer output or service logs for the configured port)
+The upstream project opens its UI in Chrome/Edge "app mode". This fork keeps
+the same background service but draws the UI natively with
+[egui](https://github.com/emilk/egui), instead of loading a web page in
+Chromium.
 
-**Linux install options** (see [`LINUX_INSTALL.MD`](LINUX_INSTALL.MD) for full details):
+| | Native app (this fork) | Chromium app mode (upstream UI) |
+|---|---|---|
+| Memory (PSS, all processes) | **104 MB**, of which ~67 MB was the software GPU driver | **491 MB** |
+| Processes | **1** | 10 |
+| CPU time while idle, 30 s | **1.3 s** | 3.6 s |
+| Browser required | **No** | Chrome or Edge |
+| App download | **5.6 MB** single `.exe` | browser + web assets |
 
-- **Install script** (any distro): `curl -fsSL https://raw.githubusercontent.com/ozturkkl/framework-control/main/install-linux.sh | sudo bash`
-- **Arch Linux (AUR)**: `yay -S framework-control` ([stable](https://aur.archlinux.org/packages/framework-control) · [beta](https://aur.archlinux.org/packages/framework-control-beta))
-- **NixOS**: `services.framework-control.enable = true;` in your NixOS configuration
+**About 4.7× less memory, 10× fewer processes, about 2.8× less idle CPU.**
+
+<sub>How this was measured: both UIs showed the same live service on the same
+machine (Linux, 1100×760 window, software OpenGL renderer since there was no
+GPU), with memory summed as PSS across each UI's process tree. On a real
+Windows laptop the GPU driver replaces the ~67 MB software renderer, so the
+app's own footprint is closer to 30–40 MB. Absolute numbers will vary; the
+ratio is the point. The background service is identical in both setups and
+isn't counted.</sub>
+
+The native app redraws only when new readings arrive (every 2 s by default)
+or when you interact with it, and closing the window stops it entirely. The
+service keeps applying your fan curves and power limits in the background.
+
+## Screenshots
+
+| Fans: curve editor with live duty markers | Per-fan overrides |
+|---|---|
+| ![Fans](docs/screenshots/fans.png) | ![Fan 2 tab](docs/screenshots/fan2.png) |
+| **Battery: charge limits and history** | **Power: TDP and thermal limits** |
+| ![Battery](docs/screenshots/battery.png) | ![Power](docs/screenshots/power.png) |
+| **Settings: updates, themes, framework_tool** | **Calibration wizard** |
+| ![Settings](docs/screenshots/settings.png) | ![Calibration](docs/screenshots/calibrate.png) |
+| **Light theme (all 8 web themes are supported)** | **Service logs** |
+| ![Light theme](docs/screenshots/light.png) | ![Logs](docs/screenshots/logs.png) |
+
+## What's in the port
+
+Everything the upstream web UI does, natively:
+
+- **Sensors**: live temperature and fan RPM graphs with a sensor filter, and a
+  configurable sample interval.
+- **Fans**:
+  - Auto (EC), Manual and Curve modes.
+  - Drag-to-edit curve: click to add points, right-click to remove.
+  - Hysteresis, plus separate up and down rate limits.
+  - Per-fan overrides.
+  - Live duty markers once the fans are calibrated, with the calibration wizard built in.
+- **Fan profiles**: create, rename, reorder and delete profiles, and switch
+  automatically when you plug in or go on battery.
+- **Power**:
+  - Separate plugged-in and on-battery profiles.
+  - TDP and thermal limits through RyzenAdj, which installs in one click from
+    the app; EPP, governor and frequency limits on Linux.
+- **Battery**: charge limit, charge-rate limit with an SoC threshold, health,
+  cycles, live power, and up to 7 days of history.
+- **Settings**: in-app updates, the 8 themes shared with the web UI,
+  turning features on or off (this also stops their background work),
+  `framework_tool` version switching, the service log viewer, and device info.
+
+All settings live in the service's config, so they're shared with the web UI.
+Both can be used side by side.
+
+[`tools/parity/parity.toml`](tools/parity/parity.toml) lists every upstream
+endpoint, web component and setting, and where it lives in the native app.
+The few omissions are browser-only features, such as the hosted-page version
+check and browser shortcut creation, and each one has a note explaining why.
+
+## Install
+
+1. Download `FrameworkControl-<version>-x64.msi` from the
+   [latest release](https://github.com/kingof9x/framework-control-windows-naitive/releases/latest)
+   and run it.
+2. Open **Framework Control** from the Start Menu or Desktop.
+
+The installer sets up the background service and the app, plus Start Menu and
+Desktop shortcuts that open the app instead of a browser. If you already have
+upstream Framework Control installed, this installer replaces it and keeps your
+settings.
+
+> ⚠️ **Framework 16:** BIOS 3.07 or newer is required for proper EC/fan control.
+> Install the [latest BIOS](https://knowledgebase.frame.work/en_us/framework-laptop-16-bios-and-driver-releases-amd-ryzen-7040-series-BkeqkVovp) first.
+
+A portable `framework-control-app-<version>-x64.zip`, containing just the app,
+is also attached to each release. It works with any running Framework Control
+service, including an upstream install.
+
+### Updates
+
+**Settings → Updates** checks this repository's
+[GitHub releases](https://github.com/kingof9x/framework-control-windows-naitive/releases)
+for a newer build. **Install** downloads the MSI and the service installs it
+silently, without a UAC prompt, keeping your settings. Turn on **Automatically
+keep up to date** to have the service check every 6 hours and install new
+releases by itself. A badge in the app header also shows when an update is
+available.
 
 ### Uninstall
 
-- **Windows**: Uninstall "Framework Laptop Control Service" from Settings → Apps (or Add/Remove Programs). This removes the service, install folder, and the Start Menu/Desktop shortcuts.
-- **Linux (install script)**: Run the uninstall script (see [`LINUX_INSTALL.MD`](LINUX_INSTALL.MD#uninstallation)):
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/ozturkkl/framework-control/main/uninstall-linux.sh | sudo bash
-  ```
-- **Linux (AUR)**: `sudo pacman -R framework-control` (or `framework-control-beta`)
-- **NixOS**: Set `services.framework-control.enable = false;` and run `sudo nixos-rebuild switch`
+Uninstall **Framework Control** from Settings → Apps. This removes the
+service, the app, the shortcuts and the saved settings.
+
+## How it works
+
+```
+┌──────────────────────────┐   HTTP on 127.0.0.1   ┌────────────────────────────┐
+│ framework-control-app    │ ────────────────────▶ │ framework-control-service  │
+│ native UI (Rust + egui)  │                       │ Windows service (SYSTEM)   │
+│ only runs while open     │ ◀──────────────────── │ fan curves, power limits,  │
+└──────────────────────────┘     JSON + config     │ battery, telemetry history │
+                                                   └─────────────┬──────────────┘
+                                                                 │ framework_tool / RyzenAdj
+                                                                 ▼
+                                                      Embedded controller / CPU
+```
+
+- `service/`: upstream's Rust service. The fork changes it only slightly: the
+  update check can use a release version baked in at build time, and versions
+  are compared numerically.
+- `native/`: the desktop app. API calls happen on a background thread, so the
+  window never blocks. Edits save automatically, like the web UI.
+- `native/installer/`: the WiX MSI and `build-msi.ps1`.
+- `web/`: upstream's Svelte UI. It isn't shipped here, but it's kept as the
+  reference for feature parity.
+
+## Staying in sync with upstream
+
+Upstream keeps adding features, so the fork includes a parity tool. It's
+built so Claude (or anyone else) can run the sync:
+
+```bash
+python3 tools/parity/parity.py upstream   # what changed upstream since the last sync, and what isn't ported
+python3 tools/parity/parity.py check      # fail if any upstream endpoint/component/setting is unaccounted for
+python3 tools/parity/parity.py mark-synced
+```
+
+CI runs `check` on every push. The step-by-step sync process (merge rules,
+where each kind of change goes, how to release) is in the
+[`upstream-parity` skill](.claude/skills/upstream-parity/SKILL.md). In Claude
+Code, just ask it to "sync with upstream".
+
+## Building from source
+
+Requirements: Rust stable (MSVC on Windows). For the MSI, you also need WiX
+Toolset v3 (`choco install wixtoolset`).
+
+```bash
+cd native
+cargo run --release -- --demo     # sample data, no service or Framework laptop needed
+cargo run --release               # connect to the local service (port from the install, $FRAMEWORK_CONTROL_PORT, or 8090)
+cargo test
+```
+
+```powershell
+pwsh native/installer/build-msi.ps1   # -> native/dist/FrameworkControl-<version>-x64.msi
+```
+
+Releases: bump `version` in `native/Cargo.toml` and add an entry to
+`native/CHANGELOG.md`. Pushing to `main` builds the MSI and publishes the
+GitHub release ([workflow](.github/workflows/native-release.yml)).
+See [`native/README.md`](native/README.md) for app internals.
+
+## Credits
+
+Framework Control was created by [Kemal Ozturk](https://github.com/ozturkkl).
+The service, the feature set and the original UI are theirs; this fork adds
+the native front end and the Windows packaging. If you find it useful,
+consider [supporting the upstream project](https://github.com/ozturkkl/framework-control).
+MIT licensed (see [LICENSE](LICENSE)).
 
 ## Disclaimer
 
-This software is provided "as is," without warranty of any kind, express or implied. By using it, you acknowledge that you are responsible for any configuration changes you make to your system and accept all risks associated with its use. The authors and contributors are not liable for any damage, data loss, hardware wear, unintended behavior, or other harm that may result from use or misuse of this application.
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=ozturkkl%2Fframework-control&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ozturkkl/framework-control&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ozturkkl/framework-control&type=date&legend=top-left" />
-   <img alt="Star History Chart" width=600 src="https://api.star-history.com/chart?repos=ozturkkl/framework-control&type=date&legend=top-left" />
- </picture>
-</a>
-
-## Current Features
-
-- **Fan Controls**: Auto, Manual duty, and Curve editor with hysteresis and rate-limit
-  - Per-fan overrides on multi-fan devices (optional custom manual duty or curve per fan)
-  - Live RPM overlay with crosshair showing current temperature and estimated duty% on the curve editor
-  - One-time calibration wizard for accurate RPM-to-duty mapping
-- **Telemetry & Sensors**: Live temperature and fan RPM graphs with history
-  - Background telemetry sampling with configurable poll interval and history window
-  - Per-sensor series with selection and legend, sourced from the local service
-- **Persistent Settings**: Configurations saved locally with sensible defaults
-- **Clean Architecture**: Minimal always-on local service with REST API on loopback
-- **User-Friendly**: No terminal required - MSI installer for Windows with automatic service registration
-- **Native App Experience**: Start Menu/Desktop shortcuts open Chrome/Edge in app mode on Windows; Linux gets an application menu desktop entry (created on first run)
-- **Battery Controls**: View battery health/SoC, live charge/discharge power and estimated time remaining/ to target, with configurable max charge limit and optional charge-rate (C) limit + SoC threshold, plus a charge/power history graph.
-- **Power Controls**:
-  - **Windows (RyzenAdj)**: TDP and thermal limit control for AMD Ryzen systems
-  - **Linux (Native)**: Uses kernel interfaces (AMD P-State EPP, cpufreq governor)
-  - Set energy preferences (AMD P-State) or governors/frequency limits (cpufreq)
-  - Separate AC/Battery profiles with background reapply and live power readout
-- **Updates & Shortcuts**: In-app update checks and optional auto-install, Start Menu/Desktop shortcut management, and `framework_tool` version selection from the Settings modal
-- **Themes**: DaisyUI theme picker persisted in config and applied across clients
-- **Linux Support**: 
-  - systemd unit with udev rules for input modules
-  - Native power management via kernel interfaces (no external dependencies)
-  - Install script, [AUR package](https://aur.archlinux.org/packages/framework-control), and [nixpkgs](https://github.com/NixOS/nixpkgs/tree/master/pkgs/by-name/fr/framework-control) / NixOS module
-
-## Upcoming Goals
-
-- **LED Matrix Support** (Framework 16 input module):
-  - Live canvas editor (draw/erase/brightness/sleep) inspired by https://ledmatrix.frame.work/
-  - One/two-module layouts (9×34 and 9×68), dithering and content scheduling
-  - Optional integrations for animations/GIF/pixel art
-- **Additional EC Controls**: Keyboard backlight, fingerprint LED levels, input deck modes
-- **Import/Export**: Settings backup and sharing
-- **App Signing for Windows**: Support for Windows Store app signing and distribution
-
-## Architecture
-
-- **Backend Service**: Rust (Tokio + Poem + poem-openapi)
-  - Exposes HTTP API with OpenAPI generation
-  - Executes Framework CLI (`framework_tool`) for all EC interactions
-  - Power management: RyzenAdj on Windows, native kernel interfaces (AMD P-State EPP, cpufreq) on Linux
-  - Applies persisted fan-control and power config at boot
-- **Frontend UI**: Svelte + TypeScript + Vite + Tailwind + DaisyUI
-  - Responsive panel layout adapting to active fan mode
-  - Real-time telemetry updates
-- **Packaging**: WiX MSI installer for Windows; Linux install script, AUR package, and nixpkgs / NixOS module
-
-## Why CLI-only for EC?
-
-Early iterations used the Rust `framework_lib` directly. On Windows that required build-time git metadata and custom driver bindings, which added fragility to packaging and dev setup. Pivoting to the official CLI (`framework_tool`) gives a stable, tested interface with consistent elevation semantics on Windows. It also maps cleanly to Linux.
-
-## Contributing
-
-Pull requests are welcome **only when they originate from an issue labeled `pr-welcome`**. Please [open an issue](https://github.com/ozturkkl/framework-control/issues) first, wait for the label, then link it in your PR (e.g. `Fixes #123`). PRs without a linked `pr-welcome` issue will be closed. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Developer Setup
-
-**Prerequisites**:
-
-- Rust stable toolchain
-- Node.js for the web UI
-
-**Dev Commands**:
-
-```bash
-# Backend (dev)
-cd framework-control/service
-cargo run
-
-# Frontend (dev)
-cd framework-control/web
-npm i
-npm run dev
-```
-
-### Frontend API Usage Policy (Important)
-
-- Always use the generated client in `web/src/api` (`DefaultService`, `OpenAPI`) for all calls to the local service.
-- Do NOT use `fetch` directly for service endpoints anywhere in the UI.
-- After changing backend routes or models, regenerate the client:
-  1. Build the service to refresh `web/openapi.json`
-  2. From `framework-control/web`, run: `npm run gen:api`
-
-### Backend Environment Variables Policy (Important)
-
- ⚠️ **Compile-Time Configuration Baking**
-
- All `FRAMEWORK_CONTROL_*` environment variables read in the service code **must** support both runtime and compile-time fallback using `option_env!()`. This allows the Linux build process to bake configuration into the binary.
-
- **Pattern to follow:**
- ```rust
- std::env::var("FRAMEWORK_CONTROL_PORT")
-     .ok()
-     .or_else(|| option_env!("FRAMEWORK_CONTROL_PORT").map(String::from))
-     .expect("FRAMEWORK_CONTROL_PORT must be set")
- ```
-
-**Environment Variables**:
-
-Service `.env` file (`framework-control/service/.env`):
-
-```
-# Allow your dev UI origin(s)
-FRAMEWORK_CONTROL_ALLOWED_ORIGINS=http://127.0.0.1:5174,http://localhost:5174
-
-# Required: port for the service
-FRAMEWORK_CONTROL_PORT=8090
-
-# Optional: GitHub repo used by the update endpoints (owner/name or full URL-ish form)
-FRAMEWORK_CONTROL_UPDATE_REPO=ozturkkl/framework-control
-```
-
-Web UI `.env.local` file (`framework-control/web/.env.local`):
-
-```
-# Local service URL (optional; auto-detects from current origin if omitted)
-# Set this to match your FRAMEWORK_CONTROL_PORT in the service
-VITE_API_BASE=http://127.0.0.1:8090
-```
-
-## Updates & Caching
-
-- UI is served by the service; static assets are built with Vite and cached by the browser
-- After installing or applying a service update, refresh the browser once to pick up new UI assets
-
-## API & Configuration
-
-The service provides a REST API for health and telemetry (`/api/health`, `/api/thermal`, `/api/thermal/history`, `/api/battery/history`, `/api/power`, `/api/versions`), system info (`/api/system`), update and helper management (`/api/update/*`, `/api/ryzenadj/*`), shortcut management (`/api/shortcuts/*`), and config management (`/api/config`).
-
-- `/api/power`: combined battery telemetry (SoC, capacity, voltages/currents, charger wattage) plus charge-limit info and `power_control` object with platform `capabilities` and `current_state`.
-- `/api/thermal/history`: recent temperature/RPM samples collected by the background telemetry task.
-- `/api/battery/history`: charge % and signed pack watts from the history task. Optional `since` (unix ms) returns only newer samples.
-
-Configuration is stored (by default) in `C:\ProgramData\FrameworkControl\config.json` on Windows (overridable via `FRAMEWORK_CONTROL_CONFIG`) and `/etc/framework-control/config.json` on Linux. It includes fan mode settings, curve points, calibration data, hysteresis, and rate limiting parameters, power AC/Battery profiles, battery charge-limit/rate settings and SoC threshold, telemetry poll/retention, update preferences, and UI theme.
-
-## UI Features
-
-### Sensors & Telemetry
-
-- Live per-sensor temperature graph with history window
-- Configurable poll interval and history duration (via Telemetry settings)
-- Sensor selection with color-coded legend and hover readouts
-
-### Fan Curve Editor
-
-- Visual curve editing with drag-and-drop points
-- Live RPM overlay with real-time crosshair showing current temperature and fan duty
-- Guided calibration wizard for accurate RPM-to-duty% mapping
-- Hysteresis and rate limiting controls (including optional separate spin-down rate) to prevent oscillation
-- Per-fan curve tabs and RPM overlays when overrides are configured
-- Sensor selection (APU/CPU)
-
-### Fan Modes
-
-- **Auto**: Platform-managed fan control
-- **Manual**: Fixed duty percentage slider
-- **Curve**: Custom temperature-to-duty curve with advanced controls
-
-## Security Notes
-
-- API binds to loopback only (127.0.0.1) - no remote exposure
-- CORS restricts browser-based cross-origin requests
-- Service logs diagnostics via the Windows service wrapper (rolling logs in the install directory) or `journalctl` on Linux
+This software is provided "as is", without warranty of any kind, express or
+implied. By using it, you acknowledge that you are responsible for any
+configuration changes you make to your system and accept all risks associated
+with its use. The authors and contributors are not liable for any damage, data
+loss, hardware wear, unintended behavior, or other harm that may result from
+use or misuse of this application.

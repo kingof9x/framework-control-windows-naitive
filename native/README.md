@@ -1,61 +1,59 @@
-# Framework Control – native app
+# native/: Framework Control desktop app
 
-A desktop app for Framework Control that doesn't need a browser. It talks to
-the same local service on `127.0.0.1` that the web UI uses, but draws its own
-window with [egui](https://github.com/emilk/egui) instead of opening Chrome or
-Edge.
+Rust + [egui](https://github.com/emilk/egui) front end for the Framework
+Control service. See the [top-level README](../README.md) for the overview,
+install and release process.
 
-- One ~5 MB `.exe` with no runtime and no WebView2.
-- Uses a fraction of the memory: measured at 106 MB versus 520 MB (12
-  processes) for Chromium's app mode showing the web UI. Of that 106 MB, about
-  67 MB was this test machine's software OpenGL driver; the app's own share is
-  roughly 30–40 MB.
-- Redraws only when new data arrives (every telemetry interval, 2 s by
-  default) or when you interact with it.
-
-The background service is unchanged and still does all the hardware work. This
-replaces only the browser front end.
-
-## Features
-
-| Page     | What you can do |
-|----------|-----------------|
-| Overview | Hottest sensor, fan RPM, battery %, battery power, active fan profile; temperature and fan-speed graphs |
-| Fans     | Pick profile; Auto (EC) / Manual / Curve; drag-to-edit curve with live temperature marker; sensors, hysteresis, rate limit, interval |
-| Power    | Separate plugged-in / on-battery profiles: TDP & thermal limit (Windows/RyzenAdj), EPP, governor, frequency limits (Linux) |
-| Battery  | Charge, health, cycles, power; charge limit, charge-rate limit + SoC threshold; history graph |
-| Settings | Telemetry interval, auto-install updates, version/update status, device info |
-
-Not yet ported from the web UI: fan calibration wizard, per-fan overrides,
-creating/renaming fan profiles and AC/battery auto-switch, RyzenAdj install
-button, `framework_tool` version switcher, logs viewer, dashboard layout, themes
-(the app follows the OS light/dark setting). Use the web UI for those for now;
-both stay in sync because they share the service config.
-
-## Build and run
+## Run
 
 ```bash
-cd native
-cargo build --release
-./target/release/framework-control-app            # connects to 127.0.0.1:8090
-./target/release/framework-control-app --port 1234
-./target/release/framework-control-app --demo     # sample data, no service needed
+cargo run -- --demo                       # synthetic data, no service needed
+cargo run -- --port 8090                  # talk to a running service
+cargo run -- --demo --page fans           # open on a page: overview|fans|power|battery|settings
 ```
 
-The port defaults to `$FRAMEWORK_CONTROL_PORT`, then 8090. On Windows release
-builds no console window opens, and the app uses Segoe UI when it is installed.
+The port comes from `--port`, then `$FRAMEWORK_CONTROL_PORT`, then the
+installed service's `FrameworkControlService.xml` next to the exe, then 8090.
+Windows release builds have no console window and use Segoe UI.
 
-Tests (the live one needs a running service):
+## Test
 
 ```bash
-cargo test
-FC_TEST_PORT=8090 cargo test -- --include-ignored
+cargo test                                          # unit tests
+FC_TEST_PORT=8090 cargo test -- --include-ignored   # + round-trip against a live service
+python3 ../tools/parity/parity.py check             # upstream parity
+```
+
+### Screenshots
+
+Every UI state in the README can be reproduced in demo mode.
+`FC_DEMO_SCENE` (`fan2`, `calibrate`, `logs`, `light`) opens a specific state:
+
+```bash
+FC_DEMO_SCENE=calibrate cargo run -- --demo --page fans
 ```
 
 ## Layout
 
-- `src/api.rs`: service types (unknown fields are preserved on write-back) and HTTP client
-- `src/state.rs`: background poller thread; the UI thread never blocks on I/O
-- `src/app.rs`: pages, widgets, plots, fan-curve editor
-- `src/theme.rs`: light/dark visuals, system font
-- `src/demo.rs`: synthetic backend for `--demo`
+| File | What it does |
+|---|---|
+| `src/main.rs` | CLI args, port discovery, window setup |
+| `src/api.rs` | Service types (unknown fields kept in `extra` maps so writes never drop data) and the `Backend` trait + HTTP client |
+| `src/demo.rs` | `DemoBackend` with synthetic sensors, fans and battery |
+| `src/state.rs` | Background poller thread: fetches data, applies config patches, wakes the UI only on new data |
+| `src/task.rs` | One-off background jobs (installs, log fetches) |
+| `src/app.rs` | Window shell, navigation, feature toggles, autosaving drafts |
+| `src/pages/*.rs` | Overview, Fans, Power, Battery, Settings |
+| `src/plots.rs` | Graphs and the interactive fan-curve editor |
+| `src/calibration.rs` | Fan calibration wizard (same procedure as the web UI) |
+| `src/theme.rs` | Native versions of the web UI's 8 DaisyUI themes |
+| `src/version.rs` | Release URLs, version comparison |
+| `installer/` | WiX v3 MSI source and `build-msi.ps1` |
+
+## How edits are saved
+
+Edited sections (fan, power, battery) are kept as local drafts and saved 600 ms
+after the last change, once the mouse is released, matching the web UI's
+autosave. The poller counts applied writes, and drafts only re-sync from the
+server once every write sent so far has landed, so a config poll that was in
+flight can't undo an edit.
