@@ -13,7 +13,7 @@
   an existing upstream install (same service, same config) instead of
   installing a second copy next to it. Settings in %PROGRAMDATA% are kept.
 -->
-<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi' xmlns:util='http://schemas.microsoft.com/wix/UtilExtension'>
     <Product
         Id='*'
         Name='Framework Control'
@@ -40,6 +40,19 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes'/>
+
+        <!--
+          No restart needed. Windows Installer asks for one when its files are in use, then leaves
+          the old files in place until the next restart. Nothing here needs a restart (no drivers), so
+          make sure nothing is in use instead:
+          - the background service is stopped by ServiceControl (below) before files are copied;
+          - the Framework Control window is asked to close, then ended after 5 seconds if it hasn't;
+          - Restart Manager's "close apps or restart later" prompt is off, since the above covers it.
+        -->
+        <Property Id='MSIRESTARTMANAGERCONTROL' Value='Disable'/>
+        <util:CloseApplication Id='CloseNativeApp' Target='framework-control-app.exe'
+            CloseMessage='yes' ElevatedCloseMessage='yes' TerminateProcess='0' Timeout='5'
+            RebootPrompt='no' Description='Closing Framework Control so it can be updated.'/>
 
         <Icon Id='AppIcon.ico' SourceFile='$(var.Stage)\app.ico'/>
         <Property Id='ARPPRODUCTICON' Value='AppIcon.ico'/>

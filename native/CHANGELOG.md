@@ -13,6 +13,10 @@ fork is synced to is recorded in `tools/parity/parity.toml`.
   - Windows-style on/off switches.
 - The web UI's colour themes (Retro, Synthwave and so on) are no longer
   offered; if one was chosen, the app follows Windows instead.
+- Installer: no more "restart required" messages. The installer now closes
+  Framework Control's window before updating its files (the background
+  service was already stopped), so nothing is in use and no restart is
+  needed.
 
 ## 1.2.0
 
