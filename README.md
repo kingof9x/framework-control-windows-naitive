@@ -58,9 +58,11 @@ isn't counted.</sub>
 - **Battery**: charge limit, charge-rate limit with an SoC threshold, health,
   cycles, live power, and up to 7 days of history.
 - **Tools**: launch your other Framework 16 tools:
-  - the [LED Matrix Monitor](https://github.com/kingof9x/led-matrix): start
-    it, or open its layout editor;
-  - the [keyboard + macropad lighting app](https://github.com/kingof9x/framework-16-keyboard-customization).
+  - [**White Rabbit**](https://github.com/kingof9x/white-rabbit-framework-matrix),
+    the LED Matrix app: open it, edit the panel layout, or jump to games and
+    patterns;
+  - [**Framework 16 Keyboard Control**](https://github.com/kingof9x/framework-16-keyboard-customization),
+    for keyboard and macropad lighting.
 
   The page shows whether each tool is installed or running, and links to the
   download when it isn't.
@@ -75,7 +77,7 @@ isn't counted.</sub>
 | ![Fans](docs/screenshots/fans.png) | ![Fan 2 tab](docs/screenshots/fan2.png) |
 | **Battery: charge limits and history** | **Power: TDP and thermal limits** |
 | ![Battery](docs/screenshots/battery.png) | ![Power](docs/screenshots/power.png) |
-| **Tools: launch your other Framework 16 tools** | **Calibration wizard** |
+| **Tools: launch White Rabbit and Framework 16 Keyboard Control** | **Calibration wizard** |
 | ![Tools](docs/screenshots/tools.png) | ![Calibration](docs/screenshots/calibrate.png) |
 | **Settings: updates, themes, framework_tool** | **Light theme** |
 | ![Settings](docs/screenshots/settings.png) | ![Light theme](docs/screenshots/light.png) |

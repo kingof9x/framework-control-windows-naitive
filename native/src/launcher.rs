@@ -1,4 +1,4 @@
-//! Companion Framework 16 tools that this app can start
+//! Companion Framework 16 tools (White Rabbit, Framework 16 Keyboard Control) that this app can start
 //! (see https://github.com/kingof9x/my-framework-16-tools).
 
 use std::collections::BTreeMap;
@@ -11,8 +11,6 @@ pub struct Action {
     pub label: &'static str,
     pub args: &'static [&'static str],
     pub hint: &'static str,
-    /// This action starts the long-running instance (blocked while it is running).
-    pub starts_instance: bool,
 }
 
 pub struct ToolDef {
@@ -26,32 +24,36 @@ pub struct ToolDef {
     pub download_label: &'static str,
     pub download_url: &'static str,
     pub project_url: &'static str,
-    /// The tool refuses to start a second copy (named mutex).
-    pub single_instance: bool,
 }
 
 pub const TOOLS: &[ToolDef] = &[
     ToolDef {
-        id: "led_mon",
-        name: "LED Matrix Monitor",
-        description: "System monitor, clock, weather and more on the LED Matrix panels, with a layout editor.",
-        exe: "led_mon.exe",
+        id: "white-rabbit",
+        name: "White Rabbit",
+        description: "The LED Matrix app: a system monitor you design, games and patterns, startup animation and firmware updates.",
+        exe: "WhiteRabbit.exe",
         actions: &[
-            Action { label: "Start monitor", args: &[], hint: "Runs in the system tray", starts_instance: true },
-            Action { label: "Edit layout", args: &["--edit-layout"], hint: "Choose which apps show on each panel", starts_instance: false },
+            // A plain start runs the monitor and opens the window; if the monitor is already running, it just opens the window.
+            Action { label: "Open", args: &[], hint: "Starts the LED monitor if needed and opens the window" },
+            Action { label: "Edit panel layout", args: &["--edit-layout"], hint: "Choose what shows on each panel" },
+            Action { label: "Games & patterns", args: &["--window", "--tab", "play"], hint: "" },
         ],
-        install_dirs: &[("LOCALAPPDATA", "Programs\\led_mon")],
+        install_dirs: &[
+            ("LOCALAPPDATA", "Programs\\WhiteRabbit"),
+            ("USERPROFILE", "Downloads\\WhiteRabbit-portable"),
+            ("USERPROFILE", "Downloads"),
+            ("USERPROFILE", "Desktop"),
+        ],
         download_label: "Download installer",
-        download_url: "https://github.com/kingof9x/My-Framework-16-tools/releases/latest/download/led_mon-setup.exe",
-        project_url: "https://github.com/kingof9x/led-matrix",
-        single_instance: true,
+        download_url: "https://github.com/kingof9x/white-rabbit-framework-matrix/releases/latest/download/WhiteRabbit-setup.exe",
+        project_url: "https://github.com/kingof9x/white-rabbit-framework-matrix",
     },
     ToolDef {
         id: "f16-lights",
-        name: "Framework 16 Lights",
-        description: "RGB keyboard and macropad lighting: per-device effects, linked effects and hotkey lock.",
+        name: "Framework 16 Keyboard Control",
+        description: "RGB keyboard and macropad lighting and setup: per-device effects, linked effects, hotkey lock and macropad layers.",
         exe: "f16-lights.exe",
-        actions: &[Action { label: "Open", args: &[], hint: "", starts_instance: false }],
+        actions: &[Action { label: "Open", args: &[], hint: "" }],
         install_dirs: &[
             ("LOCALAPPDATA", "Programs\\f16-lights"),
             ("USERPROFILE", "Downloads"),
@@ -61,7 +63,6 @@ pub const TOOLS: &[ToolDef] = &[
         download_label: "Get the latest build",
         download_url: "https://github.com/kingof9x/framework-16-keyboard-customization/releases/latest",
         project_url: "https://github.com/kingof9x/framework-16-keyboard-customization",
-        single_instance: false,
     },
 ];
 
