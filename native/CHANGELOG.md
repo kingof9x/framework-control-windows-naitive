@@ -3,6 +3,17 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.3.0
+
+- New look that matches **White Rabbit** and the Windows 11 Settings app:
+  - It follows Windows' light or dark mode and your accent colour, or you
+    can pick Light or Dark.
+  - A side menu with Fluent icons, large page titles, and settings laid out
+    as cards with a short explanation each.
+  - Windows-style on/off switches.
+- The web UI's colour themes (Retro, Synthwave and so on) are no longer
+  offered; if one was chosen, the app follows Windows instead.
+
 ## 1.2.0
 
 - The Tools page now launches **White Rabbit**, the all-in-one LED Matrix

@@ -229,7 +229,7 @@ native = "FanCalibration::duty_for_rpm (piecewise linear instead of cubic spline
 
 [web."themes.ts"]
 status = "ported"
-native = "native/src/theme.rs"
+native = "native/src/theme.rs: system/light/dark (shared ui.theme) in the Windows 11 look shared with White Rabbit; the web-only colour themes (retro, synthwave, ...) fall back to system"
 
 [web."tooltip.ts"]
 status = "internal"

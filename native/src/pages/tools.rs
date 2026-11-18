@@ -9,7 +9,7 @@ use crate::app::App;
 use crate::launcher::{self, Found, LocalSettings, TOOLS};
 use crate::task::{finished, Task};
 use crate::theme;
-use crate::widgets::{card, hint, primary_button, section_title, status_line};
+use crate::widgets::{accent_button, button, card, section, status_line, Icon};
 
 const RUNNING_CHECK_EVERY: Duration = Duration::from_secs(3);
 
@@ -48,73 +48,67 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     }
     ctx.request_repaint_after(RUNNING_CHECK_EVERY);
 
-    hint(ui, "Your other Framework 16 tools. They run on their own, so closing Framework Control leaves them running.");
-    ui.add_space(8.0);
+    section(ui, "Your Framework 16 tools");
+    crate::widgets::hint(ui, "They run on their own, so closing Framework Control leaves them running.");
+    ui.add_space(4.0);
 
     for tool in TOOLS {
         let found = launcher::locate(tool, t.settings.as_ref().unwrap());
         let running = t.is_running(tool.exe);
-        card(ui, |ui| {
-            ui.horizontal(|ui| {
-                section_title(ui, tool.name);
-                let dark = ui.visuals().dark_mode;
-                let (text, color) = match (&found, running) {
-                    (_, true) => ("● Running", theme::success(dark)),
-                    (Found::Missing, _) => ("Not found", theme::warning(dark)),
-                    _ => ("Installed", ui.visuals().weak_text_color()),
-                };
-                ui.label(RichText::new(text).color(color).small());
-            });
-            ui.label(tool.description);
-            ui.add_space(6.0);
-
-            match found.path() {
-                Some(path) => {
-                    ui.horizontal_wrapped(|ui| {
-                        for action in tool.actions {
-                            let r = if std::ptr::eq(action, &tool.actions[0]) {
-                                primary_button(ui, action.label)
-                            } else {
-                                ui.button(action.label)
-                            };
-                            let resp = if action.hint.is_empty() { r } else { r.on_hover_text(action.hint) };
-                            if resp.clicked() {
-                                t.msg = Some(match launcher::launch(path, action.args) {
-                                    Ok(()) => (format!("Started {}.", tool.name), false),
-                                    Err(e) => (e, true),
-                                });
-                                // Re-check soon so the status catches up with the new process.
-                                t.last_check = Some(Instant::now() - RUNNING_CHECK_EVERY + Duration::from_millis(1500));
-                            }
-                        }
-                        if cfg!(windows) && ui.button("Change location…").clicked() {
-                            if let Some(p) = launcher::browse_for(tool) {
-                                remember(t, tool.id, Some(p));
-                            }
-                        }
-                        if matches!(found, Found::Chosen(_)) && ui.button("Use default location").clicked() {
-                            remember(t, tool.id, None);
-                        }
-                    });
-                    hint(ui, &path.display().to_string());
+        let icon = match tool.id {
+            "white-rabbit" => Icon::Panels,
+            _ => Icon::Keyboard,
+        };
+        let c = theme::colors(ui.ctx());
+        let status = match (&found, running) {
+            (_, true) => "Running",
+            (Found::Missing, _) => "Not found on this PC",
+            _ => "Installed",
+        };
+        let help = format!("{}  ·  {status}", tool.description);
+        card(ui, Some(icon), tool.name, &help, false, |ui| match found.path() {
+            Some(path) => {
+                for (n, action) in tool.actions.iter().enumerate() {
+                    let r = if n == 0 { accent_button(ui, action.label) } else { button(ui, action.label) };
+                    let r = if action.hint.is_empty() { r } else { r.on_hover_text(action.hint) };
+                    if r.clicked() {
+                        t.msg = Some(match launcher::launch(path, action.args) {
+                            Ok(()) => (format!("Started {}.", tool.name), false),
+                            Err(e) => (e, true),
+                        });
+                        // Re-check soon so the status catches up with the new process.
+                        t.last_check = Some(Instant::now() - RUNNING_CHECK_EVERY + Duration::from_millis(1500));
+                    }
                 }
-                None => {
-                    ui.label(format!("{} wasn't found on this PC.", tool.exe));
-                    ui.horizontal_wrapped(|ui| {
-                        if primary_button(ui, tool.download_label).clicked() {
-                            ui.ctx().open_url(egui::OpenUrl::new_tab(tool.download_url));
-                        }
-                        if cfg!(windows) && ui.button("I already have it: browse…").clicked() {
-                            if let Some(p) = launcher::browse_for(tool) {
-                                remember(t, tool.id, Some(p));
-                            }
-                        }
-                        ui.hyperlink_to("About this tool", tool.project_url);
-                    });
+            }
+            None => {
+                if accent_button(ui, tool.download_label).clicked() {
+                    ui.ctx().open_url(egui::OpenUrl::new_tab(tool.download_url));
                 }
             }
         });
-        ui.add_space(12.0);
+        // Where it is, and how to point at a different copy.
+        ui.horizontal(|ui| {
+            ui.add_space(52.0);
+            match found.path() {
+                Some(p) => {
+                    ui.label(RichText::new(p.display().to_string()).size(12.0).color(c.text3));
+                }
+                None => {
+                    ui.label(RichText::new(format!("Looked for {}.", tool.exe)).size(12.0).color(c.text3));
+                }
+            }
+            if cfg!(windows) && ui.link(RichText::new(if found.path().is_some() { "Change" } else { "I already have it" }).size(12.0)).clicked() {
+                if let Some(p) = launcher::browse_for(tool) {
+                    remember(t, tool.id, Some(p));
+                }
+            }
+            if matches!(found, Found::Chosen(_)) && ui.link(RichText::new("Use default location").size(12.0)).clicked() {
+                remember(t, tool.id, None);
+            }
+            ui.hyperlink_to(RichText::new("About").size(12.0), tool.project_url);
+        });
+        ui.add_space(8.0);
     }
     status_line(ui, &t.msg);
 }

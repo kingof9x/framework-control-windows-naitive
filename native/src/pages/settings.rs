@@ -7,9 +7,9 @@ use crate::api::*;
 use crate::app::App;
 use crate::state::Snapshot;
 use crate::task::{finished, Task};
-use crate::theme::THEMES;
+use crate::theme::{self, THEMES};
 use crate::version::{self, is_newer};
-use crate::widgets::{card, hint, section_title, status_line};
+use crate::widgets::{accent_button, button, card, group, section, status_line, switch, Icon};
 
 #[derive(Default)]
 pub struct SettingsUi {
@@ -37,107 +37,109 @@ impl SettingsUi {
 pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
     poll_jobs(app, ui.ctx());
     let Some(cfg) = snap.config.clone() else {
-        ui.label("Loading…");
+        card(ui, Some(Icon::Settings), "Loading…", "Waiting for the service.", false, |_| {});
         return;
     };
 
-    card(ui, |ui| updates(app, ui, snap, &cfg));
-    ui.add_space(12.0);
-
-    card(ui, |ui| {
-        section_title(ui, "Appearance");
-        ui.horizontal(|ui| {
-            ui.label("Theme");
-            let current = cfg.ui.theme.clone().unwrap_or_else(|| "system".into());
-            let label = THEMES.iter().find(|(v, _)| *v == current).map(|(_, l)| *l).unwrap_or("System");
-            egui::ComboBox::from_id_salt("theme").selected_text(label).show_ui(ui, |ui| {
+    section(ui, "Appearance");
+    card(
+        ui,
+        Some(Icon::Theme),
+        "App theme",
+        "Follows Windows' light or dark mode and accent colour, like White Rabbit.",
+        false,
+        |ui| {
+            let current = cfg.ui.theme.clone().filter(|t| THEMES.iter().any(|(v, _)| v == t)).unwrap_or_else(|| "system".into());
+            let label = THEMES.iter().find(|(v, _)| *v == current).map(|(_, l)| *l).unwrap_or("Use my Windows setting");
+            egui::ComboBox::from_id_salt("theme").selected_text(label).width(220.0).show_ui(ui, |ui| {
                 for (value, label) in THEMES {
                     if ui.selectable_label(current == value, label).clicked() {
                         app.patch(json!({ "ui": { "theme": value } }));
                     }
                 }
             });
-            hint(ui, "Shared with the web UI.");
-        });
-    });
-    ui.add_space(12.0);
+        },
+    );
 
-    card(ui, |ui| {
-        section_title(ui, "Features");
-        hint(ui, "Turning a feature off hides it and stops the service's background work for it.");
-        ui.add_space(4.0);
-        ui.horizontal_wrapped(|ui| {
-            for (id, label) in [
-                (PanelId::Telemetry, "Sensors & telemetry"),
-                (PanelId::Fan, "Fan control"),
-                (PanelId::Power, "Power"),
-                (PanelId::Battery, "Battery"),
-            ] {
-                let mut on = cfg.ui.panel_enabled(id);
-                if ui.checkbox(&mut on, label).changed() {
-                    app.patch(json!({ "ui": { "panels": cfg.ui.with_panel(id, on) } }));
-                }
-                ui.add_space(10.0);
+    section(ui, "Updates");
+    updates(app, ui, snap, &cfg);
+
+    section(ui, "Features");
+    for (id, icon, label, help) in [
+        (PanelId::Telemetry, Icon::Pulse, "Sensors", "Temperature and fan speed history."),
+        (PanelId::Fan, Icon::Fan, "Fan control", "Fan profiles, manual speed and curves."),
+        (PanelId::Power, Icon::Power, "Power", "TDP and thermal limits for plugged in and on battery."),
+        (PanelId::Battery, Icon::Battery, "Battery", "Charge limits and charge history."),
+    ] {
+        let mut on = cfg.ui.panel_enabled(id);
+        card(ui, Some(icon), label, &format!("{help} Off also stops the service's background work for it."), false, |ui| {
+            if switch(ui, &mut on) {
+                app.patch(json!({ "ui": { "panels": cfg.ui.with_panel(id, on) } }));
             }
         });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.label("Sensor sample interval");
-            let mut poll = cfg.telemetry.poll_ms;
-            let r = ui.add(egui::Slider::new(&mut poll, 500..=10_000).step_by(250.0).suffix(" ms"));
-            if r.drag_stopped() || (r.changed() && !r.dragged()) {
-                app.patch(json!({ "telemetry": { "poll_ms": poll } }));
-            }
-        });
+    }
+    card(ui, Some(Icon::Timer), "Sensor sample interval", "How often the service reads temperatures and fan speeds.", false, |ui| {
+        let mut poll = cfg.telemetry.poll_ms;
+        let r = ui.add(egui::Slider::new(&mut poll, 500..=10_000).step_by(250.0).suffix(" ms"));
+        if r.drag_stopped() || (r.changed() && !r.dragged()) {
+            app.patch(json!({ "telemetry": { "poll_ms": poll } }));
+        }
     });
-    ui.add_space(12.0);
 
-    card(ui, |ui| framework_tool(app, ui, &cfg));
-    ui.add_space(12.0);
+    section(ui, "Hardware");
+    framework_tool(app, ui, &cfg);
+    if card(ui, Some(Icon::Logs), "Service logs", "The last 500 lines from the background service.", true, |_| {}).clicked() {
+        app.settings.logs_open = true;
+        fetch_logs(app, ui.ctx());
+    }
 
-    card(ui, |ui| {
-        section_title(ui, "Logs");
-        ui.horizontal(|ui| {
-            hint(ui, "The last 500 lines from the background service.");
-            if ui.button("View logs").clicked() {
-                app.settings.logs_open = true;
-                fetch_logs(app, ui.ctx());
-            }
-        });
-    });
-    ui.add_space(12.0);
-
-    card(ui, |ui| {
-        section_title(ui, "Device");
-        egui::Grid::new("dev").num_columns(2).spacing([16.0, 6.0]).show(ui, |ui| {
-            let mut row = |k: &str, v: Option<String>| {
-                ui.label(RichText::new(k).weak());
-                ui.label(v.unwrap_or("—".into()));
+    section(ui, "This laptop");
+    let v = snap.versions.clone().unwrap_or_default();
+    let sys = snap.system.clone().unwrap_or_default();
+    group(ui, "", "", |ui| {
+        egui::Grid::new("dev").num_columns(2).spacing([24.0, 6.0]).show(ui, |ui| {
+            let c = theme::colors(ui.ctx());
+            let mut row = |k: &str, val: Option<String>| {
+                ui.label(RichText::new(k).color(c.text2));
+                ui.label(RichText::new(val.unwrap_or("—".into())).color(c.text));
                 ui.end_row();
             };
-            let v = snap.versions.clone().unwrap_or_default();
-            let s = snap.system.clone().unwrap_or_default();
             row("Mainboard", v.mainboard_type);
             row("BIOS", v.uefi_version.map(|x| format!("{x} ({})", v.uefi_release_date.unwrap_or_default())));
             row("EC", v.ec_build_version);
             row("framework_tool", v.tool_version);
-            row("CPU", Some(s.cpu));
-            row("dGPU", s.dgpu);
-            row("Memory", Some(format!("{:.0} GB", s.memory_total_mb as f64 / 1024.0)));
-            row("OS", Some(s.os));
+            row("CPU", Some(sys.cpu));
+            row("Graphics", sys.dgpu);
+            row("Memory", Some(format!("{:.0} GB", sys.memory_total_mb as f64 / 1024.0)));
+            row("Windows", Some(sys.os));
         });
     });
-    ui.add_space(12.0);
 
-    card(ui, |ui| {
-        section_title(ui, "About");
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Native Windows front end for");
-            ui.hyperlink_to("Framework Control", version::UPSTREAM_URL);
-            ui.label("by Kemal Ozturk. Releases:");
-            ui.hyperlink_to(version::REPO, version::RELEASES_URL);
-        });
-    });
+    section(ui, "About");
+    if card(
+        ui,
+        Some(Icon::Info),
+        &format!("Framework Control {}", env!("CARGO_PKG_VERSION")),
+        "A native Windows app built on Framework Control by Kemal Ozturk. Opens this app's page on GitHub.",
+        true,
+        |_| {},
+    )
+    .clicked()
+    {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(format!("https://github.com/{}", version::REPO)));
+    }
+    if card(
+        ui,
+        Some(Icon::Heart),
+        "Support the original project",
+        "The service, fan curves and power logic come from Framework Control. Opens its page on GitHub.",
+        true,
+        |_| {},
+    )
+    .clicked()
+    {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(version::UPSTREAM_URL));
+    }
 }
 
 fn poll_jobs(app: &mut App, ctx: &egui::Context) {
@@ -176,68 +178,80 @@ fn poll_jobs(app: &mut App, ctx: &egui::Context) {
 }
 
 fn updates(app: &mut App, ui: &mut Ui, snap: &Snapshot, cfg: &Config) {
-    section_title(ui, "Updates");
+    let busy = app.settings.update_job.is_some() || app.close_at.is_some();
     match &snap.update {
-        None => hint(ui, "Checking GitHub for the latest release…"),
+        None => {
+            card(ui, Some(Icon::Sync), "Framework Control", "Checking GitHub for the newest version…", false, |ui| {
+                ui.spinner();
+            });
+        }
         Some(u) if !u.updates_enabled => {
-            ui.label(format!("Version {}", u.current_version));
-            hint(ui, "In-app updates are not available for this install.");
+            card(ui, Some(Icon::Sync), "Framework Control", &format!("Version {}. In-app updates aren't available for this install.", u.current_version), false, |_| {});
         }
         Some(u) => {
             let newer = is_newer(&u.latest_version, &u.current_version);
-            ui.horizontal(|ui| {
+            let help = if newer {
+                format!("Version {} is available (you have {}). Your settings are kept.", u.latest_version, u.current_version)
+            } else {
+                format!("You have the newest version ({}).", u.current_version)
+            };
+            card(ui, Some(if newer { Icon::Download } else { Icon::Check }), "Framework Control", &help, false, |ui| {
                 if newer {
-                    ui.label(
-                        RichText::new(format!("v{} → v{}", u.current_version, u.latest_version))
-                            .color(crate::theme::warning(ui.visuals().dark_mode)),
-                    );
-                    let busy = app.settings.update_job.is_some() || app.close_at.is_some();
-                    if ui.add_enabled(!busy, egui::Button::new(if busy { "Installing…" } else { "Install" })).clicked() {
-                        let b = app.backend.clone();
-                        app.settings.update_job = Some(Task::spawn(ui.ctx(), move || b.apply_update()));
-                    }
-                } else {
-                    ui.label(format!("Up to date · v{}", u.current_version));
-                }
-                if ui.button("Check now").clicked() {
+                    ui.add_enabled_ui(!busy, |ui| {
+                        if accent_button(ui, if busy { "Installing…" } else { "Install update" }).clicked() {
+                            let b = app.backend.clone();
+                            app.settings.update_job = Some(Task::spawn(ui.ctx(), move || b.apply_update()));
+                        }
+                    });
+                } else if button(ui, "Check for updates").clicked() {
                     app.refresh();
                 }
             });
-            if newer {
-                hint(ui, "Installs the latest release from GitHub. Your settings are kept.");
-            }
             let mut auto = cfg.updates.auto_install;
-            if ui.checkbox(&mut auto, "Automatically keep up to date").changed() {
-                app.patch(json!({ "updates": { "auto_install": auto } }));
-            }
+            card(
+                ui,
+                Some(Icon::Sync),
+                "Keep up to date automatically",
+                "The service checks GitHub every 6 hours and installs new versions by itself, with no prompt.",
+                false,
+                |ui| {
+                    if switch(ui, &mut auto) {
+                        app.patch(json!({ "updates": { "auto_install": auto } }));
+                    }
+                },
+            );
         }
     }
-    ui.horizontal(|ui| {
-        ui.hyperlink_to("Release notes and downloads", version::RELEASES_URL);
-    });
+    if card(ui, Some(Icon::Open), "Release notes and downloads", "What's new in each version, on GitHub.", true, |_| {}).clicked() {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(version::RELEASES_URL));
+    }
     status_line(ui, &app.settings.update_msg);
 }
 
 fn framework_tool(app: &mut App, ui: &mut Ui, cfg: &Config) {
-    section_title(ui, "framework_tool version");
-    hint(ui, "Selecting a version installs it and switches the service to it.");
     let s = &mut app.settings;
     let busy = s.tool_switch.is_some();
-    ui.horizontal(|ui| match &s.tool_versions {
+    let mut choice: Option<Option<String>> = None;
+    let mut help = "The tool the service uses to talk to the laptop. Picking a version installs it.".to_string();
+    if let Some(v) = &s.tool_versions {
+        let current_tag = v.current_version.as_ref().map(|c| if c.starts_with('v') { c.clone() } else { format!("v{c}") });
+        if cfg.framework_tool.latest && v.latest_tag.is_some() && current_tag.is_some() && v.latest_tag != current_tag {
+            help = format!("Latest is chosen but {} is running.", current_tag.clone().unwrap_or_default());
+        }
+    }
+    card(ui, Some(Icon::Board), "framework_tool version", &help, false, |ui| match &s.tool_versions {
         None => {
             ui.spinner();
         }
         Some(v) => {
             let current_tag = v.current_version.as_ref().map(|c| if c.starts_with('v') { c.clone() } else { format!("v{c}") });
             let latest_label = format!("Latest{}", v.latest_tag.as_ref().map(|t| format!(" ({t})")).unwrap_or_default());
-            let selected = if cfg.framework_tool.latest {
-                latest_label.clone()
-            } else {
-                current_tag.clone().unwrap_or("Unknown".into())
-            };
-            let mut choice: Option<Option<String>> = None;
+            let selected = if cfg.framework_tool.latest { latest_label.clone() } else { current_tag.clone().unwrap_or("Unknown".into()) };
+            if busy {
+                ui.spinner();
+            }
             ui.add_enabled_ui(!busy, |ui| {
-                egui::ComboBox::from_id_salt("tool").selected_text(selected).width(180.0).show_ui(ui, |ui| {
+                egui::ComboBox::from_id_salt("tool").selected_text(selected).width(200.0).show_ui(ui, |ui| {
                     if ui.selectable_label(cfg.framework_tool.latest, &latest_label).clicked() {
                         choice = Some(None);
                     }
@@ -249,23 +263,13 @@ fn framework_tool(app: &mut App, ui: &mut Ui, cfg: &Config) {
                     }
                 });
             });
-            if busy {
-                ui.spinner();
-                ui.label("Installing…");
-            }
-            if cfg.framework_tool.latest && v.latest_tag.is_some() && current_tag.is_some() && v.latest_tag != current_tag {
-                ui.label(
-                    RichText::new(format!("Latest is enabled but running {}", current_tag.clone().unwrap_or_default()))
-                        .color(crate::theme::warning(ui.visuals().dark_mode)),
-                );
-            }
-            if let Some(c) = choice {
-                let b = app.backend.clone();
-                s.tool_msg = None;
-                s.tool_switch = Some(Task::spawn(ui.ctx(), move || b.switch_framework_tool(c)));
-            }
         }
     });
+    if let Some(c) = choice {
+        let b = app.backend.clone();
+        s.tool_msg = None;
+        s.tool_switch = Some(Task::spawn(ui.ctx(), move || b.switch_framework_tool(c)));
+    }
     status_line(ui, &s.tool_msg);
 }
 
@@ -289,6 +293,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     egui::Window::new("Service logs")
         .open(&mut open)
         .default_size([760.0, 480.0])
+        .frame(egui::Frame::window(&ctx.style()).inner_margin(egui::Margin::same(16)))
         .collapsible(false)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -311,7 +316,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
                     ui.add(egui::Label::new(RichText::new(text).monospace()).wrap_mode(egui::TextWrapMode::Extend));
                 }
                 Some(Err(e)) => {
-                    ui.label(RichText::new(format!("Couldn't load logs: {e}")).color(crate::theme::error(ui.visuals().dark_mode)));
+                    ui.label(RichText::new(format!("Couldn't load logs: {e}")).color(crate::theme::colors(ui.ctx()).error));
                 }
             });
         });

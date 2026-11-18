@@ -4,6 +4,10 @@ A lightweight native Windows app for controlling your Framework laptop: fan
 curves, power limits, battery charging, and live temperatures. It's also a
 launcher for your other Framework 16 tools. No browser needed.
 
+It looks and works like the Windows 11 Settings app, in the same style as
+[White Rabbit](https://github.com/kingof9x/white-rabbit-framework-matrix): it
+follows Windows' light or dark mode and your accent colour.
+
 Built on [**Framework Control**](https://github.com/ozturkkl/framework-control)
 by Kemal Ozturk, which provides the background service that talks to the
 laptop's hardware. This app is a native Windows front end for it.
@@ -66,8 +70,9 @@ isn't counted.</sub>
 
   The page shows whether each tool is installed or running, and links to the
   download when it isn't.
-- **Settings**: automatic updates, 8 themes, turning features on or off (this
-  also stops their background work), `framework_tool` version switching, the
+- **Settings**: automatic updates, light or dark mode in your Windows accent
+  colour (or follow Windows), turning features on or off (this also stops
+  their background work), `framework_tool` version switching, the
   service log viewer, and device info.
 
 ## Screenshots
@@ -79,7 +84,7 @@ isn't counted.</sub>
 | ![Battery](docs/screenshots/battery.png) | ![Power](docs/screenshots/power.png) |
 | **Tools: launch White Rabbit and Framework 16 Keyboard Control** | **Calibration wizard** |
 | ![Tools](docs/screenshots/tools.png) | ![Calibration](docs/screenshots/calibrate.png) |
-| **Settings: updates, themes, framework_tool** | **Light theme** |
+| **Settings: updates, theme, features, framework_tool** | **Light mode** |
 | ![Settings](docs/screenshots/settings.png) | ![Light theme](docs/screenshots/light.png) |
 
 ## Install
@@ -192,7 +197,10 @@ GitHub release ([workflow](.github/workflows/native-release.yml)). See
 
 ## License and disclaimer
 
-MIT licensed (see [LICENSE](LICENSE)), like the original project.
+MIT licensed (see [LICENSE](LICENSE)), like the original project. Icons are
+Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons)
+(MIT, see `native/assets/icons/LICENSE-fluentui-system-icons.txt`), the same
+set White Rabbit uses.
 
 This software is provided "as is", without warranty of any kind, express or
 implied. By using it, you acknowledge that you are responsible for any
