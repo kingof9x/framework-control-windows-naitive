@@ -147,9 +147,15 @@ fn poll_jobs(app: &mut App, ctx: &egui::Context) {
     if let Some(r) = finished(&mut s.update_job) {
         s.update_msg = Some(match r {
             Ok(()) => {
-                // The installer replaces this exe, so get out of its way.
+                // The installer replaces this exe, so get out of its way; a small watcher reopens it.
                 app.close_at = Some(Instant::now() + Duration::from_secs(4));
-                ("Installer started. This window will close; reopen Framework Control from the Start menu when it finishes.".into(), false)
+                let reopen = crate::launcher::reopen_after_update();
+                let msg = if reopen.is_ok() {
+                    "Updating. Framework Control will close now and reopen by itself when the update is done (usually within a minute)."
+                } else {
+                    "Updating. Framework Control will close now; open it again from the Start menu in a minute."
+                };
+                (msg.into(), false)
             }
             Err(e) => (format!("Update failed: {e}"), true),
         });
