@@ -3,6 +3,14 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.2.0
+
+- The Tools page now launches **White Rabbit**, the all-in-one LED Matrix
+  app, instead of the LED Matrix Monitor (led_mon). Buttons: *Open*, *Edit
+  panel layout* and *Games & patterns*. White Rabbit's own Framework Control
+  button opens this app, so the two open each other.
+- The keyboard app is now called **Framework 16 Keyboard Control**.
+
 ## 1.1.0
 
 - New **Tools** page that launches your other Framework 16 tools:

@@ -1,5 +1,5 @@
-//! Launcher for the companion Framework 16 tools (LED Matrix Monitor,
-//! keyboard/macropad lighting app).
+//! Launcher for the companion Framework 16 tools (White Rabbit LED Matrix
+//! app, Framework 16 Keyboard Control).
 
 use std::time::{Duration, Instant};
 
@@ -72,18 +72,12 @@ pub fn show(app: &mut App, ui: &mut Ui) {
                 Some(path) => {
                     ui.horizontal_wrapped(|ui| {
                         for action in tool.actions {
-                            let blocked = action.starts_instance && tool.single_instance && running;
-                            let resp = if blocked {
-                                ui.add_enabled(false, egui::Button::new(action.label))
-                                    .on_disabled_hover_text("Already running (look for its tray icon)")
+                            let r = if std::ptr::eq(action, &tool.actions[0]) {
+                                primary_button(ui, action.label)
                             } else {
-                                let r = if std::ptr::eq(action, &tool.actions[0]) {
-                                    primary_button(ui, action.label)
-                                } else {
-                                    ui.button(action.label)
-                                };
-                                if action.hint.is_empty() { r } else { r.on_hover_text(action.hint) }
+                                ui.button(action.label)
                             };
+                            let resp = if action.hint.is_empty() { r } else { r.on_hover_text(action.hint) };
                             if resp.clicked() {
                                 t.msg = Some(match launcher::launch(path, action.args) {
                                     Ok(()) => (format!("Started {}.", tool.name), false),
