@@ -18,6 +18,8 @@ concurrency:
 
 jobs:
   build:
+    # Hosted web UI is upstream's; the native fork doesn't publish Pages.
+    if: github.repository == 'ozturkkl/framework-control'
     runs-on: ubuntu-latest
     defaults:
       run:

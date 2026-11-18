@@ -32,6 +32,19 @@ fn usage() -> ! {
     std::process::exit(2)
 }
 
+/// When installed next to the service, read the port it was configured with
+/// from its WinSW config (`<env name="FRAMEWORK_CONTROL_PORT" value="..."/>`).
+fn installed_service_port() -> Option<u16> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    port_from_winsw_xml(&std::fs::read_to_string(dir.join("FrameworkControlService.xml")).ok()?)
+}
+
+fn port_from_winsw_xml(xml: &str) -> Option<u16> {
+    let after = &xml[xml.find("\"FRAMEWORK_CONTROL_PORT\"")?..];
+    let value = &after[after.find("value=\"")? + 7..];
+    value[..value.find('"')?].trim().parse().ok()
+}
+
 fn main() -> eframe::Result<()> {
     let mut port: Option<u16> = None;
     let mut demo = false;
@@ -48,6 +61,7 @@ fn main() -> eframe::Result<()> {
     }
     let port = port
         .or_else(|| std::env::var("FRAMEWORK_CONTROL_PORT").ok().and_then(|v| v.parse().ok()))
+        .or_else(installed_service_port)
         .unwrap_or(DEFAULT_PORT);
 
     let backend: Arc<dyn api::Backend> = if demo {
@@ -60,7 +74,10 @@ fn main() -> eframe::Result<()> {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("Framework Control")
             .with_inner_size([1100.0, 760.0])
-            .with_min_inner_size([760.0, 520.0]),
+            .with_min_inner_size([760.0, 520.0])
+            .with_icon(
+                eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png")).unwrap_or_default(),
+            ),
         ..Default::default()
     };
     eframe::run_native(
@@ -76,4 +93,15 @@ fn main() -> eframe::Result<()> {
             Ok(Box::new(app))
         }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reads_port_from_service_config() {
+        let xml = r#"<env name="FRAMEWORK_CONTROL_ALLOWED_ORIGINS" value="" />
+  <env name="FRAMEWORK_CONTROL_PORT" value="8123" />"#;
+        assert_eq!(super::port_from_winsw_xml(xml), Some(8123));
+        assert_eq!(super::port_from_winsw_xml("<service/>"), None);
+    }
 }

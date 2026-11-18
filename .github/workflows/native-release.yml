@@ -1,0 +1,93 @@
+name: Native app
+
+# Builds the native app + MSI on every push/PR that touches it, and publishes
+# a GitHub release from main whenever native/Cargo.toml has a version that
+# hasn't been released yet. The service's updater (and the app's Settings
+# page) look for the .msi asset on the latest release.
+
+on:
+  push:
+    paths:
+      - "native/**"
+      - "service/**"
+      - "tools/parity/**"
+      - ".github/workflows/native-release.yml"
+  pull_request:
+    paths:
+      - "native/**"
+      - "service/**"
+      - "tools/parity/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - name: Install GUI build deps
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libgl1-mesa-dev
+      - name: Unit tests
+        working-directory: native
+        run: cargo test
+      - name: Upstream parity check
+        run: python3 tools/parity/parity.py check
+
+  build-windows:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            native
+            service
+      - name: Install WiX Toolset v3
+        run: choco install wixtoolset --no-progress -y
+      - name: Build MSI
+        id: build
+        shell: pwsh
+        run: ./native/installer/build-msi.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framework-control-windows
+          path: native/dist/*
+          if-no-files-found: error
+
+  release:
+    needs: [test, build-windows]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: framework-control-windows
+          path: dist
+      - name: Publish release if this version is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.build-windows.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; bump native/Cargo.toml to publish a new one."
+            exit 0
+          fi
+          notes=$(awk "/^## $VERSION(\$| )/{f=1; next} /^## /{f=0} f" native/CHANGELOG.md || true)
+          [ -n "$notes" ] || notes="Framework Control $VERSION"
+          gh release create "$tag" dist/* \
+            --title "Framework Control $VERSION" \
+            --notes "$notes" \
+            --target "$GITHUB_SHA" \
+            --latest
