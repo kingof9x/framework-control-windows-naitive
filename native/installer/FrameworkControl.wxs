@@ -66,16 +66,12 @@
                             <Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='Framework Control'
                                 Description='Fan, power and battery control' WorkingDirectory='APPLICATIONFOLDER'
                                 Icon='AppIcon.ico' IconIndex='0' Advertise='yes'/>
+                            <Shortcut Id='DesktopShortcut' Directory='DesktopFolder' Name='Framework Control'
+                                Description='Fan, power and battery control' WorkingDirectory='APPLICATIONFOLDER'
+                                Icon='AppIcon.ico' IconIndex='0' Advertise='yes'/>
                         </File>
                     </Component>
 
-                    <Component Id='DesktopShortcut' Guid='8E2F5A41-0C7D-4E36-B1A9-5D3C7F2E6B18' Win64='yes'>
-                        <Condition>INSTALLDESKTOPSHORTCUT = "1"</Condition>
-                        <Shortcut Id='DesktopShortcutLnk' Directory='DesktopFolder' Name='Framework Control'
-                            Description='Fan, power and battery control' Target='[APPLICATIONFOLDER]framework-control-app.exe'
-                            WorkingDirectory='APPLICATIONFOLDER' Icon='AppIcon.ico' IconIndex='0'/>
-                        <RegistryValue Root='HKLM' Key='Software\FrameworkControl' Name='DesktopShortcut' Type='integer' Value='1' KeyPath='yes'/>
-                    </Component>
 
                     <!-- Background service (identical to upstream's layout) -->
                     <Component Id='WinSwComponent' Guid='*' Win64='yes'>
@@ -135,8 +131,6 @@
             </Directory>
         </Directory>
 
-        <!-- Desktop shortcut is on by default; `msiexec /i ... INSTALLDESKTOPSHORTCUT=0` skips it. -->
-        <Property Id='INSTALLDESKTOPSHORTCUT' Value='1' Secure='yes'/>
 
         <!--
           Everything lives in the 'Binaries' feature: the service's in-app
@@ -146,7 +140,6 @@
         <Feature Id='Binaries' Title='Framework Control' Level='1' Absent='disallow' AllowAdvertise='no'
             ConfigurableDirectory='APPLICATIONFOLDER'>
             <ComponentRef Id='NativeApp'/>
-            <ComponentRef Id='DesktopShortcut'/>
             <ComponentRef Id='WinSwComponent'/>
             <ComponentRef Id='WinSwConfigComponent'/>
             <ComponentRef Id='ServiceBinary'/>
