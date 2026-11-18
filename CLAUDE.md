@@ -5,8 +5,9 @@ browser UI with a native Rust/egui app.
 
 - `service/` – upstream's Rust background service (loopback HTTP API). Keep
   changes here minimal so upstream merges stay easy.
-- `web/` – upstream's Svelte UI. Not shipped by this fork, but it is the
-  reference for feature parity.
+- Upstream's browser UI (`web/`), Linux packaging and docs are deliberately
+  not kept here. The parity tool reads upstream's UI straight from upstream
+  git (`refs/parity/upstream` / the synced commit).
 - `native/` – the native app (`cargo run -- --demo` runs it with sample data).
   Installer: `native/installer/` (WiX v3, built by `build-msi.ps1`).
 - `tools/parity/` – upstream parity manifest + checker.

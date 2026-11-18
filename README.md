@@ -133,9 +133,12 @@ service, the app, the shortcuts and the saved settings.
 |---|---|
 | `native/` | This app. API calls happen on a background thread, so the window never blocks, and edits save automatically. |
 | `native/installer/` | The WiX MSI definition and `build-msi.ps1`. |
-| `service/` | The background service from the original Framework Control project, with two small changes: update checks follow this repository's releases, and versions are compared numerically. |
-| `web/` | The original project's browser UI. It isn't shipped; it's kept as the reference for feature parity. |
+| `service/` | The background service from the original Framework Control project, with three small changes: update checks follow this repository's releases, versions are compared numerically, and the built-in web UI is off by default. |
 | `tools/parity/` | Keeps this app in step with the original project (see below). |
+
+The original project's browser UI, Linux packaging and project docs aren't
+kept in this repository. They live in
+[the original repository](https://github.com/ozturkkl/framework-control).
 
 ## Built on Framework Control
 

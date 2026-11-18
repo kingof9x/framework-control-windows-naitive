@@ -23,7 +23,8 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 regex = "1"
 
 [features]
-default = ["embed-ui"]
+# The web UI is not part of this fork (the native app replaces it); `embed-ui` needs ../web/dist.
+default = []
 embed-ui = ["dep:rust-embed"]
 
 
