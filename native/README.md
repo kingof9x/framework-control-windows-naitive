@@ -26,7 +26,8 @@ python3 ../tools/parity/parity.py check             # upstream parity
 
 ### Screenshots
 
-Every UI state in the README can be reproduced in demo mode.
+Every UI state in the README can be reproduced in demo mode. `FC_APPEARANCE=light|dark`
+and `FC_ACCENT=#light,#dark` stand in for Windows' settings when running elsewhere.
 `FC_DEMO_SCENE` (`fan2`, `calibrate`, `logs`, `light`) opens a specific state:
 
 ```bash
@@ -47,7 +48,8 @@ FC_DEMO_SCENE=calibrate cargo run -- --demo --page fans
 | `src/launcher.rs` | Companion tools (White Rabbit, Framework 16 Keyboard Control): where to find them, running check, launching, remembered locations (`%APPDATA%\FrameworkControl\native-app.json`) |
 | `src/plots.rs` | Graphs and the interactive fan-curve editor |
 | `src/calibration.rs` | Fan calibration wizard (same procedure as the web UI) |
-| `src/theme.rs` | Native versions of the web UI's 8 DaisyUI themes |
+| `src/theme.rs` | The Windows 11 look shared with White Rabbit: palette, Windows accent colour and light/dark (read from the registry), fonts |
+| `src/widgets.rs` | Setting cards, switches, accent buttons, section titles and Fluent icons (`assets/icons`) |
 | `src/version.rs` | Release URLs, version comparison |
 | `installer/` | WiX v3 MSI source and `build-msi.ps1` |
 

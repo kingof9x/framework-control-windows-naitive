@@ -31,7 +31,7 @@ fn time_plot(id: &str, height: f32) -> Plot<'static> {
 
 /// Temperature history. `only` limits the series shown (empty = all).
 pub fn temp_plot(ui: &mut Ui, samples: &[TelemetrySample], only: &[String], height: f32) {
-    let dark = ui.visuals().dark_mode;
+    let pal = theme::colors(ui.ctx());
     let now = samples.last().map(|s| s.ts_ms).unwrap_or(0);
     let names: Vec<String> = samples.last().map(|s| s.temps.keys().cloned().collect()).unwrap_or_default();
     time_plot("temps", height)
@@ -47,13 +47,13 @@ pub fn temp_plot(ui: &mut Ui, samples: &[TelemetrySample], only: &[String], heig
                     .iter()
                     .filter_map(|s| s.temps.get(name).map(|v| [minutes_ago(s.ts_ms, now), *v as f64]))
                     .collect();
-                pui.line(Line::new(pts).name(name).color(theme::series(dark, i)).width(1.8_f32));
+                pui.line(Line::new(pts).name(name).color(pal.series(i)).width(1.8_f32));
             }
         });
 }
 
 pub fn rpm_plot(ui: &mut Ui, samples: &[TelemetrySample], height: f32) {
-    let dark = ui.visuals().dark_mode;
+    let pal = theme::colors(ui.ctx());
     let now = samples.last().map(|s| s.ts_ms).unwrap_or(0);
     let fans = samples.last().map(|s| s.rpms.len()).unwrap_or(0);
     time_plot("rpm", height)
@@ -73,13 +73,13 @@ pub fn rpm_plot(ui: &mut Ui, samples: &[TelemetrySample], height: f32) {
                     .iter()
                     .filter_map(|s| s.rpms.get(f).map(|v| [minutes_ago(s.ts_ms, now), *v as f64]))
                     .collect();
-                pui.line(Line::new(pts).name(format!("Fan {}", f + 1)).color(theme::series(dark, f + 1)).width(1.8_f32));
+                pui.line(Line::new(pts).name(format!("Fan {}", f + 1)).color(pal.series(f + 1)).width(1.8_f32));
             }
         });
 }
 
 pub fn battery_plot(ui: &mut Ui, samples: &[BatterySample]) {
-    let dark = ui.visuals().dark_mode;
+    let pal = theme::colors(ui.ctx());
     let now = samples.last().map(|s| s.ts_ms).unwrap_or(0);
     let hrs = |ts: i64| (ts - now) as f64 / 3_600_000.0;
     Plot::new("battery_hist")
@@ -99,9 +99,9 @@ pub fn battery_plot(ui: &mut Ui, samples: &[BatterySample]) {
         .show(ui, |pui| {
             let pct: PlotPoints =
                 samples.iter().filter_map(|s| s.charge_pct.map(|p| [hrs(s.ts_ms), p as f64])).collect();
-            pui.line(Line::new(pct).name("Charge %").color(theme::series(dark, 2)).width(2.0_f32));
+            pui.line(Line::new(pct).name("Charge %").color(pal.series(2)).width(2.0_f32));
             let w: PlotPoints = samples.iter().filter_map(|s| s.watts.map(|p| [hrs(s.ts_ms), p as f64])).collect();
-            pui.line(Line::new(w).name("Watts").color(theme::series(dark, 1)).width(1.2_f32));
+            pui.line(Line::new(w).name("Watts").color(pal.series(1)).width(1.2_f32));
         });
 }
 
@@ -115,9 +115,9 @@ pub struct Probe {
 
 /// Interactive fan curve editor. Returns true when the curve changed.
 pub fn curve_editor(ui: &mut Ui, id: &str, curve: &mut CurveConfig, probes: &[Probe], drag: &mut Option<usize>) -> bool {
-    let dark = ui.visuals().dark_mode;
-    let accent = theme::accent(ui);
-    let live = theme::series(dark, 2);
+    let pal = theme::colors(ui.ctx());
+    let accent = theme::colors(ui.ctx()).accent;
+    let live = pal.series(2);
     let mut changed = false;
     let pts_snapshot = curve.points.clone();
 
@@ -147,7 +147,7 @@ pub fn curve_editor(ui: &mut Ui, id: &str, curve: &mut CurveConfig, probes: &[Pr
                 .color(accent),
             );
             for (i, p) in probes.iter().enumerate() {
-                let c = if probes.len() > 1 { theme::series(dark, i + 2) } else { live };
+                let c = if probes.len() > 1 { pal.series(i + 2) } else { live };
                 match p.duty {
                     Some(d) => pui.points(
                         Points::new(vec![[p.temp, d]])

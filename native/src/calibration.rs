@@ -39,10 +39,12 @@ impl Calibration {
 
     pub fn show(&mut self, ctx: &egui::Context, backend: &Arc<dyn Backend>) -> Outcome {
         let mut outcome = Outcome::Open;
-        egui::Modal::new(egui::Id::new("calibration")).show(ctx, |ui| {
+        let frame = egui::Frame::popup(&ctx.style()).inner_margin(egui::Margin::same(24)).corner_radius(egui::CornerRadius::same(8));
+        egui::Modal::new(egui::Id::new("calibration")).frame(frame).show(ctx, |ui| {
             ui.set_width(440.0);
+            ui.spacing_mut().item_spacing.y = 8.0;
             if !self.started {
-                widgets::section_title(ui, "Calibrate to enable live RPM");
+                ui.label(egui::RichText::new("Calibrate to see live fan speed").font(crate::theme::semibold(20.0)));
                 ui.label(
                     "To show the live RPM marker accurately, we measure how each fan's speed (RPM) maps to \
                      duty percentage. This takes about a minute and briefly spins the fans at different speeds.",
@@ -50,17 +52,17 @@ impl Calibration {
                 ui.label(RichText::new("• Your current fan settings are restored afterwards.\n• You can cancel at any time.").weak());
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if widgets::primary_button(ui, "Start calibration").clicked() {
+                    if widgets::accent_button(ui, "Start calibration").clicked() {
                         self.start(ctx, backend.clone());
                     }
-                    if ui.button("Cancel").clicked() {
+                    if widgets::button(ui, "Cancel").clicked() {
                         outcome = Outcome::Closed;
                     }
                 });
                 return;
             }
             let p = self.progress.lock().unwrap();
-            widgets::section_title(ui, "Calibrating fans");
+            ui.label(egui::RichText::new("Calibrating fans").font(crate::theme::semibold(20.0)));
             ui.label(format!("{} {:.0}%", p.info, p.pct));
             ui.add(egui::ProgressBar::new(p.pct / 100.0).animate(p.done.is_none()));
             match &p.done {
@@ -73,7 +75,7 @@ impl Calibration {
                     match r {
                         Ok(()) if self.cancel.load(Ordering::Relaxed) => ui.label("Cancelled; fan settings restored."),
                         Ok(()) => ui.label("Done. The curve editor now shows live fan duty."),
-                        Err(e) => ui.label(RichText::new(format!("Calibration failed: {e}")).color(crate::theme::error(ui.visuals().dark_mode))),
+                        Err(e) => ui.label(RichText::new(format!("Calibration failed: {e}")).color(crate::theme::colors(ui.ctx()).error)),
                     };
                     if ui.button("Close").clicked() {
                         outcome = Outcome::Closed;
