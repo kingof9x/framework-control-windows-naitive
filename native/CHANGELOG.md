@@ -3,6 +3,24 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.5.0
+
+- Cleaner, readable charts:
+  - Sensors have plain names ("Processor", "Memory", "Inside the case",
+    "Graphics power" and so on) instead of chip codes like `F75303_DDR`.
+  - Sensors that are switched off (the graphics module reads 0 °C when it's
+    off) are hidden.
+  - No legend box or vertical grid lines; each line is labelled at its end
+    with its current value.
+- The Overview's temperatures have two views, switched at the top right
+  (remembered):
+  - **Grouped:** a small chart each for Processor, Memory and case, and
+    Graphics.
+  - **One sensor:** a button per sensor showing its current temperature, and
+    one large chart of the one you pick.
+- The fan speed and battery history charts use the same clean style; battery
+  charge and power are now separate charts.
+
 ## 1.4.1
 
 - **Install update** works again, and you can see it working. The app now

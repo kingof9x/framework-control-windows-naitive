@@ -21,8 +21,9 @@ pub enum UpdateStart {
 
 #[derive(Default)]
 pub struct SettingsUi {
-    /// Overview temperature graph filter (empty = all sensors).
-    pub sensor_filter: Vec<String>,
+    /// Overview: the sensor shown in the single chart.
+    pub chart_focus: Option<String>,
+    chart_view: Option<crate::pages::overview::ChartView>,
     update_job: Option<Task<UpdateStart>>,
     update_msg: Option<(String, bool)>,
     /// An update started earlier that hasn't finished (read once from the app's own settings).
@@ -37,6 +38,25 @@ pub struct SettingsUi {
 }
 
 impl SettingsUi {
+    /// The Overview's temperature view, remembered in the app's own per-user settings.
+    pub fn chart_view(&mut self) -> crate::pages::overview::ChartView {
+        use crate::pages::overview::ChartView;
+        *self.chart_view.get_or_insert_with(|| {
+            match crate::launcher::LocalSettings::load().chart_view.as_deref() {
+                Some("single") => ChartView::Single,
+                _ => ChartView::Grouped,
+            }
+        })
+    }
+
+    pub fn set_chart_view(&mut self, view: crate::pages::overview::ChartView) {
+        use crate::pages::overview::ChartView;
+        self.chart_view = Some(view);
+        let mut local = crate::launcher::LocalSettings::load();
+        local.chart_view = Some(if view == ChartView::Single { "single" } else { "grouped" }.into());
+        let _ = local.save();
+    }
+
     pub fn open_logs(&mut self, backend: &std::sync::Arc<dyn Backend>, ctx: &egui::Context) {
         self.logs_open = true;
         let b = backend.clone();

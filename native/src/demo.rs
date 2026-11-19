@@ -31,7 +31,7 @@ impl DemoBackend {
     pub fn new() -> Self {
         let curve = GlobalCurveConfig {
             curve: CurveConfig {
-                sensors: vec!["APU".into(), "CPU".into()],
+                sensors: vec!["APU".into(), "F75303_CPU".into()],
                 ..Default::default()
             },
             poll_ms: 2000,
@@ -105,11 +105,14 @@ impl DemoBackend {
         let load = 0.5 + 0.35 * (t / 90.0).sin() + 0.15 * (t / 17.0).sin();
         let apu = 48.0 + 30.0 * load + 1.5 * noise(t);
         let mut temps = BTreeMap::new();
+        // The sensor names a Framework Laptop 16 reports (framework_tool --thermal).
         temps.insert("APU".into(), apu.round() as i32);
-        temps.insert("CPU".into(), (apu - 3.0 + noise(t + 1.0)).round() as i32);
-        temps.insert("Battery".into(), (33.0 + 2.0 * (t / 600.0).sin()).round() as i32);
-        temps.insert("Ambient".into(), (29.0 + 0.5 * noise(t / 50.0)).round() as i32);
-        temps.insert("dGPU".into(), (44.0 + 18.0 * load + noise(t + 3.0)).round() as i32);
+        temps.insert("F75303_CPU".into(), (apu - 6.0 + noise(t + 1.0)).round() as i32);
+        temps.insert("F75303_DDR".into(), (38.0 + 9.0 * load + 0.6 * noise(t + 2.0)).round() as i32);
+        temps.insert("F75303_Local".into(), (33.0 + 4.0 * load + 0.4 * noise(t / 50.0)).round() as i32);
+        temps.insert("dGPU VR".into(), (46.0 + 16.0 * load + noise(t + 3.0)).round() as i32);
+        temps.insert("dGPU VRAM".into(), (44.0 + 12.0 * load + noise(t + 4.0)).round() as i32);
+        temps.insert("dGPU AMB".into(), (39.0 + 8.0 * load + 0.5 * noise(t + 5.0)).round() as i32);
         let duty = ((apu - 40.0) / 45.0).clamp(0.0, 1.0);
         let rpm = |off: f64| ((duty * (5200.0 - off * 60.0) + 80.0 * noise(t + off)).max(0.0)) as u32;
         TelemetrySample {

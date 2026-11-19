@@ -81,6 +81,9 @@ pub const TOOLS: &[ToolDef] = &[
 pub struct LocalSettings {
     #[serde(default)]
     pub tool_paths: BTreeMap<String, PathBuf>,
+    /// The Overview's temperature view: "grouped" (default) or "single".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chart_view: Option<String>,
     /// An update the app started and hasn't seen finish yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_update: Option<crate::updater::PendingUpdate>,
