@@ -46,8 +46,10 @@ isn't counted.</sub>
 
 ## Features
 
-- **Sensors**: live temperature and fan RPM graphs, with a sensor filter and
-  an adjustable sample interval.
+- **Sensors**: live temperatures and fan speeds in clean charts with plain
+  sensor names ("Processor", "Memory", "Inside the case"). View them grouped
+  (processor, memory and case, graphics) or pick one sensor for a large chart.
+  Sensors that are switched off are hidden.
 - **Fans**:
   - Auto (EC), Manual and Curve modes.
   - Drag-to-edit curve: click to add points, right-click to remove.
@@ -78,8 +80,10 @@ isn't counted.</sub>
 
 ## Screenshots
 
-| Fans: curve editor with live duty markers | Per-fan overrides |
+| Overview: temperatures grouped | Overview: one sensor at a time |
 |---|---|
+| ![Grouped temperatures](docs/screenshots/overview.png) | ![One sensor](docs/screenshots/overview-single.png) |
+| **Fans: curve editor with live duty markers** | **Per-fan overrides** |
 | ![Fans](docs/screenshots/fans.png) | ![Fan 2 tab](docs/screenshots/fan2.png) |
 | **Battery: charge limits and history** | **Power: TDP and thermal limits** |
 | ![Battery](docs/screenshots/battery.png) | ![Power](docs/screenshots/power.png) |

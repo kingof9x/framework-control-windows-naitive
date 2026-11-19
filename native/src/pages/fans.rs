@@ -148,7 +148,7 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
     }
 
     section(ui, "Fan speed");
-    group(ui, "", "", |ui| plots::rpm_plot(ui, &snap.thermal, 140.0));
+    group(ui, "", "", |ui| plots::fan_chart(ui, "fans_page_rpm", &snap.thermal, 140.0));
 }
 
 /// Profile picker, create/rename/delete/reorder and power-source auto-switch.

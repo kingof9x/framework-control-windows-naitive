@@ -76,7 +76,8 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
             dirty = true;
         }
     });
-    group(ui, "", "", |ui| plots::battery_plot(ui, &snap.battery_history));
+    group(ui, "Charge", "", |ui| plots::battery_charge_chart(ui, &snap.battery_history));
+    group(ui, "Power", "Positive while charging, negative on battery.", |ui| plots::battery_power_chart(ui, &snap.battery_history));
     if dirty {
         draft.touch();
     }

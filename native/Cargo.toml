@@ -1,6 +1,6 @@
 [package]
 name = "framework-control-native"
-version = "1.4.1"
+version = "1.5.0"
 edition = "2021"
 description = "Native desktop client for the Framework Control service (no browser required)"
 license = "MIT"

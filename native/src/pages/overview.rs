@@ -49,7 +49,7 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
             (
                 "Hottest sensor",
                 hottest.as_ref().map(|(_, v)| format!("{v} °C")).unwrap_or("—".into()),
-                hottest.map(|(k, _)| k).unwrap_or_default(),
+                hottest.map(|(k, _)| plots::sensor_label(&k)).unwrap_or_default(),
             ),
             (
                 "Fans",
@@ -74,36 +74,88 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
         ],
     );
 
-    let names: Vec<String> = latest.map(|s| s.temps.keys().cloned().collect()).unwrap_or_default();
-    section(ui, "Temperatures");
-    group(ui, "", "", |ui| {
-        ui.horizontal(|ui| {
-            crate::widgets::hint(ui, "The last few minutes, from the service's own samples.");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let sel = &mut app.settings.sensor_filter;
-                let label = if sel.is_empty() { "All sensors".to_string() } else { format!("{} sensors", sel.len()) };
-                egui::ComboBox::from_id_salt("sensor_filter").selected_text(label).show_ui(ui, |ui| {
-                    if ui.selectable_label(sel.is_empty(), "All sensors").clicked() {
-                        sel.clear();
-                    }
-                    for n in &names {
-                        let mut on = sel.contains(n);
-                        if ui.checkbox(&mut on, n).changed() {
-                            if on {
-                                sel.push(n.clone());
-                            } else {
-                                sel.retain(|x| x != n);
-                            }
-                        }
-                    }
-                });
-            });
+    // Temperatures: grouped charts or one sensor at a time, the viewer's choice (remembered per user).
+    let view = app.settings.chart_view();
+    ui.add_space(14.0);
+    ui.horizontal(|ui| {
+        let c = crate::theme::colors(ui.ctx());
+        ui.label(egui::RichText::new("Temperatures").font(crate::theme::semibold(14.0)).color(c.text));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            // Right to left: added in reverse.
+            if crate::widgets::segmented(ui, view == ChartView::Single, "One sensor") {
+                app.settings.set_chart_view(ChartView::Single);
+            }
+            if crate::widgets::segmented(ui, view == ChartView::Grouped, "Grouped") {
+                app.settings.set_chart_view(ChartView::Grouped);
+            }
         });
-        plots::temp_plot(ui, &snap.thermal, &app.settings.sensor_filter, 240.0);
     });
+    ui.add_space(4.0);
+    match view {
+        ChartView::Grouped => grouped(ui, snap),
+        ChartView::Single => focus(app, ui, snap),
+    }
 
     section(ui, "Fan speed");
+    group(ui, "", "", |ui| plots::fan_chart(ui, "overview_fans", &snap.thermal, 150.0));
+}
+
+// ------------------------------------------------------------ chart layouts ---
+
+/// How the Overview shows temperatures.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ChartView {
+    /// A small chart per group of related sensors.
+    Grouped,
+    /// Sensor buttons and one large chart of the chosen one.
+    Single,
+}
+
+/// One sensor at a time: a button per sensor with its current value, and a large chart of the chosen one.
+fn focus(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
+    let c = crate::theme::colors(ui.ctx());
+    let sensors = plots::active_sensors(&snap.thermal);
+    let chosen = app
+        .settings
+        .chart_focus
+        .clone()
+        .filter(|n| sensors.contains(n))
+        .or_else(|| sensors.first().cloned());
     group(ui, "", "", |ui| {
-        plots::rpm_plot(ui, &snap.thermal, 160.0);
+        ui.horizontal_wrapped(|ui| {
+            for name in &sensors {
+                let now = snap.thermal.last().and_then(|s| s.temps.get(name)).copied().unwrap_or(0);
+                let text = format!("{}  {} °C", plots::sensor_label(name), now);
+                if crate::widgets::segmented(ui, chosen.as_deref() == Some(name), &text) {
+                    app.settings.chart_focus = Some(name.clone());
+                }
+            }
+        });
+        ui.add_space(8.0);
+        if let Some(name) = &chosen {
+            let series = vec![(plots::sensor_label(name), plots::series_of(&snap.thermal, name), c.accent)];
+            plots::clean_chart(ui, "focus_temp", &series, 230.0, "°", true);
+        }
     });
+}
+
+/// A small chart per group of related sensors, a few lines each, labelled at their ends. A group with no
+/// readings (e.g. the graphics module when it's off) isn't shown.
+fn grouped(ui: &mut Ui, snap: &Snapshot) {
+    let c = crate::theme::colors(ui.ctx());
+    let sensors = plots::active_sensors(&snap.thermal);
+    for group_name in ["Processor", "Memory and case", "Graphics"] {
+        let members: Vec<&String> = sensors.iter().filter(|n| plots::sensor_group(n) == group_name).collect();
+        if members.is_empty() {
+            continue;
+        }
+        group(ui, group_name, "", |ui| {
+            let series: Vec<_> = members
+                .iter()
+                .enumerate()
+                .map(|(i, n)| (plots::sensor_label(n), plots::series_of(&snap.thermal, n), c.series(i)))
+                .collect();
+            plots::clean_chart(ui, &format!("group_{group_name}"), &series, 130.0, "°", false);
+        });
+    }
 }
