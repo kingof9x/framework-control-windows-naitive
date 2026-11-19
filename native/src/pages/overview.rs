@@ -26,6 +26,20 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
     let bat = snap.power.as_ref().and_then(|p| p.battery.clone());
     let profile = snap.config.as_ref().and_then(|c| c.fan.active());
 
+    if let Some(p) = crate::pages::settings::unfinished(app) {
+        if crate::widgets::card(
+            ui,
+            Some(crate::widgets::Icon::Warning),
+            &format!("The update to {} didn't finish", p.version),
+            "Open Settings to try again or see why.",
+            true,
+            |_| {},
+        )
+        .clicked()
+        {
+            app.page = crate::app::Page::Settings;
+        }
+    }
     crate::pages::tools::quick_launch(app, ui);
 
     section(ui, "Right now");

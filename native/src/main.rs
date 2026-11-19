@@ -17,6 +17,7 @@ mod plots;
 mod state;
 mod task;
 mod theme;
+mod updater;
 mod version;
 mod widgets;
 

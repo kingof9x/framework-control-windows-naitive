@@ -1,6 +1,6 @@
 [package]
 name = "framework-control-native"
-version = "1.4.0"
+version = "1.4.1"
 edition = "2021"
 description = "Native desktop client for the Framework Control service (no browser required)"
 license = "MIT"
@@ -17,7 +17,7 @@ egui_extras = { version = "0.31", default-features = false, features = ["svg", "
 image = { version = "0.25", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-ureq = { version = "2", default-features = false, features = ["json"] }
+ureq = { version = "2", default-features = false, features = ["json", "tls"] }
 
 [target.'cfg(windows)'.dependencies]
 # Native "Browse…" file picker for locating companion tools.
