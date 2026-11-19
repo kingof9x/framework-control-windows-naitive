@@ -104,6 +104,7 @@ impl LocalSettings {
 
 // --------------------------------------------------------------- discovery ---
 
+#[derive(Clone)]
 pub enum Found {
     /// Picked by the user with Browse…
     Chosen(PathBuf),

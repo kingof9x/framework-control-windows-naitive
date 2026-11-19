@@ -68,8 +68,9 @@ isn't counted.</sub>
   - [**Framework 16 Keyboard Control**](https://github.com/kingof9x/framework-16-keyboard-customization),
     for keyboard and macropad lighting.
 
-  The page shows whether each tool is installed or running, and links to the
-  download when it isn't.
+  The page shows whether each tool is installed or running, links to the
+  download when it isn't, and links to each tool's GitHub project. Installed
+  tools also get one-click cards at the top of the Overview.
 - **Settings**: automatic updates, light or dark mode in your Windows accent
   colour (or follow Windows), turning features on or off (this also stops
   their background work), `framework_tool` version switching, the

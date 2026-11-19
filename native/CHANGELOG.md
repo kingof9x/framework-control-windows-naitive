@@ -3,6 +3,13 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.4.0
+
+- **Your tools** at the top of the Overview: one-click cards to open White
+  Rabbit and Framework 16 Keyboard Control. Only tools that are installed
+  (or that you pointed to with *Browse*) are shown.
+- The Tools page links to each tool's GitHub project.
+
 ## 1.3.2
 
 - Installer: really no more "a restart will be required" warning. The

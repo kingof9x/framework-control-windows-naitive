@@ -26,6 +26,8 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
     let bat = snap.power.as_ref().and_then(|p| p.battery.clone());
     let profile = snap.config.as_ref().and_then(|c| c.fan.active());
 
+    crate::pages::tools::quick_launch(app, ui);
+
     section(ui, "Right now");
     stat_row(
         ui,
