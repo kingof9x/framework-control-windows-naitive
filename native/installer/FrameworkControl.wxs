@@ -54,6 +54,19 @@
             CloseMessage='yes' ElevatedCloseMessage='yes' TerminateProcess='0' Timeout='5'
             RebootPrompt='no' Description='Closing Framework Control so it can be updated.'/>
 
+        <!--
+          The "files in use, a restart will be required" warning comes from InstallValidate. The
+          CloseApplication above does its closing in a deferred step that runs after that check, so the
+          open window was still seen. End the app in an immediate step just before the check. (If a
+          restart were ever really needed, Windows Installer's own end-of-install prompt still offers
+          to restart now or later.)
+        -->
+        <Property Id='WixQuietExecCmdLine' Value='"taskkill.exe" /F /IM framework-control-app.exe'/>
+        <CustomAction Id='CloseAppBeforeCheck' BinaryKey='WixCA' DllEntry='WixQuietExec' Execute='immediate' Return='ignore'/>
+        <InstallExecuteSequence>
+            <Custom Action='CloseAppBeforeCheck' Before='InstallValidate'/>
+        </InstallExecuteSequence>
+
         <Icon Id='AppIcon.ico' SourceFile='$(var.Stage)\app.ico'/>
         <Property Id='ARPPRODUCTICON' Value='AppIcon.ico'/>
         <Property Id='ARPHELPLINK' Value='https://github.com/kingof9x/framework-control-windows-naitive'/>

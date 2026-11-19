@@ -3,6 +3,16 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.3.2
+
+- Installer: really no more "a restart will be required" warning. The
+  warning came from Windows Installer's check for files in use, which ran
+  while Framework Control's window was still open (the close step came too
+  late), even though nothing ended up needing a restart. The installer now
+  closes the app just before that check. Nothing in Framework Control needs
+  a restart; if Windows ever decides one is needed, its own end-of-install
+  prompt offers to restart now or later.
+
 ## 1.3.1
 
 - Fixed **Install update** in Settings: the update never finished. The
