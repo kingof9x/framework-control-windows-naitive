@@ -73,6 +73,73 @@ pub async fn get_current_and_latest() -> Result<(String, String), String> {
 #[cfg(target_os = "windows")]
 const UPDATE_TASK: &str = "FrameworkControlUpdate";
 
+/// Register and start a one-off SYSTEM task that runs msiexec, allowed to start and keep running on battery.
+#[cfg(target_os = "windows")]
+fn run_as_scheduled_task(dir: &std::path::Path, msi: &std::path::Path, log: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let xml_escape = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    let args = format!(
+        "/i \"{}\" ADDLOCAL=Binaries /qn /norestart /l*v \"{}\"",
+        msi.display(),
+        log.display()
+    );
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Description>Installs a Framework Control update.</Description></RegistrationInfo>
+  <Triggers />
+  <Principals><Principal id="Author"><UserId>S-1-5-18</UserId><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>false</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings><StopOnIdleEnd>false</StopOnIdleEnd><RestartOnIdle>false</RestartOnIdle></IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author"><Exec><Command>msiexec.exe</Command><Arguments>{}</Arguments></Exec></Actions>
+</Task>
+"#,
+        xml_escape(&args)
+    );
+    // Task Scheduler expects UTF-16 with a byte-order mark.
+    let mut bytes = vec![0xFF, 0xFE];
+    for unit in xml.encode_utf16() {
+        bytes.extend_from_slice(&unit.to_le_bytes());
+    }
+    let xml_path = dir.join("update-task.xml");
+    std::fs::write(&xml_path, bytes).map_err(|e| format!("couldn't write task definition: {e}"))?;
+
+    let run = |args: &[&str]| -> Result<(), String> {
+        let out = std::process::Command::new("schtasks")
+            .args(args)
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "schtasks {}: {}{}",
+                args[0],
+                String::from_utf8_lossy(&out.stdout).trim(),
+                String::from_utf8_lossy(&out.stderr).trim()
+            ))
+        }
+    };
+    let xml_arg = xml_path.display().to_string();
+    run(&["/Create", "/TN", UPDATE_TASK, "/XML", &xml_arg, "/F"])?;
+    run(&["/Run", "/TN", UPDATE_TASK])
+}
+
 #[cfg(target_os = "windows")]
 async fn spawn_msiexec_install(msi_url: &str) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
@@ -102,31 +169,15 @@ async fn spawn_msiexec_install(msi_url: &str) -> Result<(), String> {
     // The installer must not run as our child process: it stops this service to replace its files, and
     // the service wrapper (WinSW) then ends the service's whole process tree, which would kill msiexec
     // half way and roll the update back. A one-off scheduled task runs it from Task Scheduler instead.
-    // schtasks /TR is a single string; keep it simple by only using it when the paths need no quoting.
-    let plain_paths = !msi.display().to_string().contains(' ') && !log.display().to_string().contains(' ');
-    if plain_paths {
-        let created = std::process::Command::new("schtasks")
-            .args(["/Create", "/TN", UPDATE_TASK, "/TR", &msiexec, "/SC", "ONCE", "/ST", "00:00", "/RU", "SYSTEM", "/RL", "HIGHEST", "/F"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
-        match created {
-            Ok(out) if out.status.success() => {
-                let ran = std::process::Command::new("schtasks")
-                    .args(["/Run", "/TN", UPDATE_TASK])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .output();
-                match ran {
-                    Ok(out) if out.status.success() => {
-                        info!("update: installer started from Task Scheduler (log: {})", log.display());
-                        return Ok(());
-                    }
-                    Ok(out) => error!("update: schtasks /Run failed: {}", String::from_utf8_lossy(&out.stderr).trim()),
-                    Err(e) => error!("update: schtasks /Run failed: {e}"),
-                }
-            }
-            Ok(out) => error!("update: schtasks /Create failed: {}", String::from_utf8_lossy(&out.stderr).trim()),
-            Err(e) => error!("update: schtasks unavailable: {e}"),
+    //
+    // The task is defined in XML because schtasks' defaults only start a task on AC power: on a laptop
+    // running on battery it would silently never run.
+    match run_as_scheduled_task(&dir, &msi, &log) {
+        Ok(()) => {
+            info!("update: installer started from Task Scheduler (log: {})", log.display());
+            return Ok(());
         }
+        Err(e) => error!("update: couldn't start the installer from Task Scheduler: {e}"),
     }
 
     // Fallback: start msiexec through cmd's `start`, detached and (if allowed) outside our job object, so

@@ -29,7 +29,7 @@ pub struct ToolsUi {
 impl ToolsUi {
     fn check_running(&mut self, ctx: &egui::Context) {
         if self.running_job.is_none() {
-            let exes: Vec<&'static str> = TOOLS.iter().map(|t| t.exe).collect();
+            let exes: Vec<&'static str> = TOOLS.iter().flat_map(|t| std::iter::once(t.exe).chain(t.old_exes.iter().copied())).collect();
             self.running_job = Some(Task::spawn(ctx, move || Ok(launcher::running(&exes))));
             self.last_check = Some(Instant::now());
         }
@@ -120,7 +120,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
 
     let located = t.locate_all();
     for (tool, found) in TOOLS.iter().zip(located) {
-        let running = t.is_running(tool.exe);
+        let running = std::iter::once(tool.exe).chain(tool.old_exes.iter().copied()).any(|e| t.is_running(e));
         let icon = tool_icon(tool);
         let c = theme::colors(ui.ctx());
         let status = match (&found, running) {

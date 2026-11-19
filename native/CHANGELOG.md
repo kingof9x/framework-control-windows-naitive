@@ -3,6 +3,19 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.4.1
+
+- **Install update** works again, and you can see it working. The app now
+  downloads the new installer itself and runs it with Windows' progress
+  window (and the administrator prompt), then reopens when it's done. If an
+  update doesn't finish, the app tells you the next time it opens and offers
+  **Try again** and **Open the log**.
+- Background automatic updates now also run on battery. They are run by a
+  Windows scheduled task, and Windows' default for those is "start only on AC
+  power", so on battery the installer never started.
+- The keyboard app is found under its new name,
+  `framework-16-keyboard-control.exe` (the old `f16-lights.exe` still works).
+
 ## 1.4.0
 
 - **Your tools** at the top of the Overview: one-click cards to open White

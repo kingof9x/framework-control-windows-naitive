@@ -18,6 +18,8 @@ pub struct ToolDef {
     pub name: &'static str,
     pub description: &'static str,
     pub exe: &'static str,
+    /// Earlier names of the exe, still found so older downloads keep working.
+    pub old_exes: &'static [&'static str],
     pub actions: &'static [Action],
     /// Where the tool's own installer puts it, relative to a known folder.
     install_dirs: &'static [(&'static str, &'static str)],
@@ -32,6 +34,7 @@ pub const TOOLS: &[ToolDef] = &[
         name: "White Rabbit",
         description: "The LED Matrix app: a system monitor you design, games and patterns, startup animation and firmware updates.",
         exe: "WhiteRabbit.exe",
+        old_exes: &[],
         actions: &[
             // A plain start runs the monitor and opens the window; if the monitor is already running, it just opens the window.
             Action { label: "Open", args: &[], hint: "Starts the LED monitor if needed and opens the window" },
@@ -52,13 +55,17 @@ pub const TOOLS: &[ToolDef] = &[
         id: "f16-lights",
         name: "Framework 16 Keyboard Control",
         description: "RGB keyboard and macropad lighting and setup: per-device effects, linked effects, hotkey lock and macropad layers.",
-        exe: "f16-lights.exe",
+        exe: "framework-16-keyboard-control.exe",
+        old_exes: &["f16-lights.exe"],
         actions: &[Action { label: "Open", args: &[], hint: "" }],
         install_dirs: &[
-            ("LOCALAPPDATA", "Programs\\f16-lights"),
+            ("LOCALAPPDATA", "Programs\\framework-16-keyboard-control"),
+            ("LOCALAPPDATA", "Programs\\Framework 16 Keyboard Control"),
             ("USERPROFILE", "Downloads"),
-            ("USERPROFILE", "Downloads\\f16-lights-windows"),
+            ("USERPROFILE", "Downloads\\framework-16-keyboard-control-windows"),
             ("USERPROFILE", "Desktop"),
+            ("LOCALAPPDATA", "Programs\\f16-lights"),
+            ("USERPROFILE", "Downloads\\f16-lights-windows"),
         ],
         download_label: "Get the latest build",
         download_url: "https://github.com/kingof9x/framework-16-keyboard-customization/releases/latest",
@@ -74,6 +81,9 @@ pub const TOOLS: &[ToolDef] = &[
 pub struct LocalSettings {
     #[serde(default)]
     pub tool_paths: BTreeMap<String, PathBuf>,
+    /// An update the app started and hasn't seen finish yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_update: Option<crate::updater::PendingUpdate>,
 }
 
 fn settings_path() -> Option<PathBuf> {
@@ -128,19 +138,22 @@ pub fn locate(tool: &ToolDef, settings: &LocalSettings) -> Found {
             return Found::Chosen(p.clone());
         }
     }
-    let mut candidates: Vec<PathBuf> = tool
+    let mut dirs: Vec<PathBuf> = tool
         .install_dirs
         .iter()
-        .filter_map(|(var, rel)| std::env::var_os(var).map(|b| PathBuf::from(b).join(rel).join(tool.exe)))
+        .filter_map(|(var, rel)| std::env::var_os(var).map(|b| PathBuf::from(b).join(rel)))
         .collect();
     // Next to this app (e.g. copied into the Framework Control folder).
     if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
-        candidates.push(dir.join(tool.exe));
+        dirs.push(dir);
     }
     // Anywhere on PATH.
     if let Some(path) = std::env::var_os("PATH") {
-        candidates.extend(std::env::split_paths(&path).map(|d| d.join(tool.exe)));
+        dirs.extend(std::env::split_paths(&path));
     }
+    // The current name everywhere first, then earlier names.
+    let names: Vec<&str> = std::iter::once(tool.exe).chain(tool.old_exes.iter().copied()).collect();
+    let candidates = names.iter().flat_map(|n| dirs.iter().map(move |d| d.join(n)));
     candidates.into_iter().find(|p| p.is_file()).map(Found::Detected).unwrap_or(Found::Missing)
 }
 
@@ -245,7 +258,7 @@ mod tests {
     fn chosen_path_wins_and_missing_is_reported() {
         let dir = std::env::temp_dir().join(format!("fc-launcher-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let exe = dir.join("f16-lights.exe");
+        let exe = dir.join("framework-16-keyboard-control.exe");
         std::fs::write(&exe, b"x").unwrap();
 
         let tool = TOOLS.iter().find(|t| t.id == "f16-lights").unwrap();
