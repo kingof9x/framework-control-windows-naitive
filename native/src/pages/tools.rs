@@ -12,6 +12,8 @@ use crate::theme;
 use crate::widgets::{accent_button, button, card, section, status_line, Icon};
 
 const RUNNING_CHECK_EVERY: Duration = Duration::from_secs(3);
+/// How long tool locations are trusted before looking on disk again.
+const LOCATE_EVERY: Duration = Duration::from_secs(5);
 
 #[derive(Default)]
 pub struct ToolsUi {
@@ -20,6 +22,8 @@ pub struct ToolsUi {
     running_job: Option<Task<Vec<String>>>,
     last_check: Option<Instant>,
     msg: Option<(String, bool)>,
+    /// Where each tool in TOOLS was found, refreshed every few seconds.
+    located: Option<(Instant, Vec<Found>)>,
 }
 
 impl ToolsUi {
@@ -34,6 +38,68 @@ impl ToolsUi {
     fn is_running(&self, exe: &str) -> bool {
         self.running.iter().any(|r| r.eq_ignore_ascii_case(exe))
     }
+
+    /// Where each tool is (same order as TOOLS), cached for a few seconds.
+    fn locate_all(&mut self) -> Vec<Found> {
+        if let Some((t, found)) = &self.located {
+            if t.elapsed() < LOCATE_EVERY {
+                return found.clone();
+            }
+        }
+        let settings = self.settings.get_or_insert_with(LocalSettings::load);
+        let found: Vec<Found> = TOOLS.iter().map(|tool| launcher::locate(tool, settings)).collect();
+        self.located = Some((Instant::now(), found.clone()));
+        found
+    }
+
+    fn launch(&mut self, tool: &launcher::ToolDef, path: &std::path::Path, args: &[&str]) {
+        self.msg = Some(match launcher::launch(path, args) {
+            Ok(()) => (format!("Started {}.", tool.name), false),
+            Err(e) => (e, true),
+        });
+        // Re-check soon so the status catches up with the new process.
+        self.last_check = Some(Instant::now() - RUNNING_CHECK_EVERY + Duration::from_millis(1500));
+    }
+}
+
+fn tool_icon(tool: &launcher::ToolDef) -> Icon {
+    match tool.id {
+        "white-rabbit" => Icon::Panels,
+        _ => Icon::Keyboard,
+    }
+}
+
+/// "Your tools" at the top of the Overview: one card per tool that is installed or was picked with
+/// Browse. Nothing is shown when neither is found.
+pub fn quick_launch(app: &mut App, ui: &mut Ui) {
+    let t = &mut app.tools;
+    let found = t.locate_all();
+    let available: Vec<(&launcher::ToolDef, std::path::PathBuf)> = TOOLS
+        .iter()
+        .zip(found)
+        .filter_map(|(tool, f)| f.path().map(|p| (tool, p.to_path_buf())))
+        .collect();
+    if available.is_empty() {
+        return;
+    }
+    section(ui, "Your tools");
+    let mut clicked: Option<usize> = None;
+    ui.columns(available.len().max(2), |cols| {
+        for (i, (tool, _)) in available.iter().enumerate() {
+            let help = match tool.id {
+                "white-rabbit" => "Open the LED Matrix app",
+                _ => "Open keyboard and macropad lighting",
+            };
+            if card(&mut cols[i], Some(tool_icon(tool)), tool.name, help, true, |_| {}).clicked() {
+                clicked = Some(i);
+            }
+        }
+    });
+    if let Some(i) = clicked {
+        let (tool, path) = &available[i];
+        t.launch(tool, path, tool.actions[0].args);
+    }
+    status_line(ui, &t.msg);
 }
 
 pub fn show(app: &mut App, ui: &mut Ui) {
@@ -52,13 +118,10 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     crate::widgets::hint(ui, "They run on their own, so closing Framework Control leaves them running.");
     ui.add_space(4.0);
 
-    for tool in TOOLS {
-        let found = launcher::locate(tool, t.settings.as_ref().unwrap());
+    let located = t.locate_all();
+    for (tool, found) in TOOLS.iter().zip(located) {
         let running = t.is_running(tool.exe);
-        let icon = match tool.id {
-            "white-rabbit" => Icon::Panels,
-            _ => Icon::Keyboard,
-        };
+        let icon = tool_icon(tool);
         let c = theme::colors(ui.ctx());
         let status = match (&found, running) {
             (_, true) => "Running",
@@ -72,12 +135,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
                     let r = if n == 0 { accent_button(ui, action.label) } else { button(ui, action.label) };
                     let r = if action.hint.is_empty() { r } else { r.on_hover_text(action.hint) };
                     if r.clicked() {
-                        t.msg = Some(match launcher::launch(path, action.args) {
-                            Ok(()) => (format!("Started {}.", tool.name), false),
-                            Err(e) => (e, true),
-                        });
-                        // Re-check soon so the status catches up with the new process.
-                        t.last_check = Some(Instant::now() - RUNNING_CHECK_EVERY + Duration::from_millis(1500));
+                        t.launch(tool, path, action.args);
                     }
                 }
             }
@@ -106,11 +164,19 @@ pub fn show(app: &mut App, ui: &mut Ui) {
             if matches!(found, Found::Chosen(_)) && ui.link(RichText::new("Use default location").size(12.0)).clicked() {
                 remember(t, tool.id, None);
             }
-            ui.hyperlink_to(RichText::new("About").size(12.0), tool.project_url);
+            ui.hyperlink_to(RichText::new("GitHub").size(12.0), tool.project_url);
         });
         ui.add_space(8.0);
     }
     status_line(ui, &t.msg);
+
+    section(ui, "On GitHub");
+    for tool in TOOLS {
+        let help = format!("Source code, releases and instructions for {}.", tool.name);
+        if card(ui, Some(Icon::Open), &format!("{} project", tool.name), &help, true, |_| {}).clicked() {
+            ui.ctx().open_url(egui::OpenUrl::new_tab(tool.project_url));
+        }
+    }
 }
 
 fn remember(t: &mut ToolsUi, id: &str, path: Option<std::path::PathBuf>) {
@@ -126,4 +192,5 @@ fn remember(t: &mut ToolsUi, id: &str, path: Option<std::path::PathBuf>) {
     if let Err(e) = s.save() {
         t.msg = Some((format!("Couldn't save the tool location: {e}"), true));
     }
+    t.located = None;
 }
