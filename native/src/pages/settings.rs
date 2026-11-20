@@ -11,12 +11,15 @@ use crate::theme::{self, THEMES};
 use crate::version::{self, is_newer};
 use crate::widgets::{accent_button, button, card, group, section, status_line, switch, Icon};
 
-/// How an update was started.
-pub enum UpdateStart {
-    /// By the app, with the installer visible.
-    App(crate::updater::PendingUpdate),
-    /// By the background service (fallback when the app can't reach GitHub).
-    Service,
+/// Start installing `version`: through the background service, which installs silently as SYSTEM. An
+/// install with any UI (even just a progress bar) stalls on Windows Installer's files-in-use check while
+/// the service is running, so the app only runs the installer itself when the service can't do it.
+fn start_update(backend: std::sync::Arc<dyn Backend>, version: String) -> Result<crate::updater::PendingUpdate, String> {
+    match backend.apply_update() {
+        Ok(()) => Ok(crate::updater::service_update(version)),
+        Err(e) => crate::updater::download_and_run()
+            .map_err(|e2| format!("the background service couldn't install it ({e}), and neither could the app ({e2})")),
+    }
 }
 
 #[derive(Default)]
@@ -24,7 +27,7 @@ pub struct SettingsUi {
     /// Overview: the sensor shown in the single chart.
     pub chart_focus: Option<String>,
     chart_view: Option<crate::pages::overview::ChartView>,
-    update_job: Option<Task<UpdateStart>>,
+    update_job: Option<Task<crate::updater::PendingUpdate>>,
     update_msg: Option<(String, bool)>,
     /// An update started earlier that hasn't finished (read once from the app's own settings).
     pending: Option<Option<crate::updater::PendingUpdate>>,
@@ -176,20 +179,18 @@ fn poll_jobs(app: &mut App, ctx: &egui::Context) {
     let s = &mut app.settings;
     if let Some(r) = finished(&mut s.update_job) {
         s.update_msg = Some(match r {
-            Ok(start) => {
-                if let UpdateStart::App(pending) = start {
-                    // Remember it, so a failed install is reported the next time the app starts.
-                    let mut local = crate::launcher::LocalSettings::load();
-                    local.pending_update = Some(pending);
-                    let _ = local.save();
-                }
+            Ok(pending) => {
+                // Remember it, so a failed install is reported the next time the app starts.
+                let mut local = crate::launcher::LocalSettings::load();
+                local.pending_update = Some(pending);
+                let _ = local.save();
                 // The installer replaces this exe, so get out of its way; a small watcher reopens it.
                 app.close_at = Some(Instant::now() + Duration::from_secs(3));
                 let reopen = crate::launcher::reopen_after_update();
                 let msg = if reopen.is_ok() {
-                    "Installing. Framework Control will close now and reopen by itself when the update is done."
+                    "Installing in the background. Framework Control will close now and reopen by itself in a minute or two."
                 } else {
-                    "Installing. Framework Control will close now; open it again from the Start menu when the installer finishes."
+                    "Installing in the background. Framework Control will close now; open it again from the Start menu in a minute or two."
                 };
                 (msg.into(), false)
             }
@@ -242,18 +243,8 @@ fn updates(app: &mut App, ui: &mut Ui, snap: &Snapshot, cfg: &Config) {
                 if newer {
                     ui.add_enabled_ui(!busy, |ui| {
                         if accent_button(ui, if busy { "Downloading…" } else { "Install update" }).clicked() {
-                            let b = app.backend.clone();
-                            app.settings.update_job = Some(Task::spawn(ui.ctx(), move || {
-                                // Download and run the installer here, visibly; if GitHub can't be reached
-                                // from the app, let the background service do it.
-                                match crate::updater::download_and_run() {
-                                    Ok(p) => Ok(UpdateStart::App(p)),
-                                    Err(e) => b
-                                        .apply_update()
-                                        .map(|_| UpdateStart::Service)
-                                        .map_err(|e2| format!("{e} (and the service couldn't either: {e2})")),
-                                }
-                            }));
+                            let (b, v) = (app.backend.clone(), u.latest_version.clone());
+                            app.settings.update_job = Some(Task::spawn(ui.ctx(), move || start_update(b, v)));
                         }
                     });
                 } else if button(ui, "Check for updates").clicked() {
@@ -312,13 +303,12 @@ fn unfinished_update(app: &mut App, ui: &mut Ui) {
         ui,
         Some(Icon::Warning),
         &format!("The update to {} didn't finish", p.version),
-        "The installer was cancelled or stopped. Try again, or open its log to see why.",
+        "The installer stopped before it finished. Try again, or open its log to see why.",
         false,
         |ui| {
             if accent_button(ui, "Try again").clicked() {
-                if let Err(e) = crate::updater::run_installer(&p.msi, None) {
-                    app.settings.update_msg = Some((e, true));
-                }
+                let (b, v) = (app.backend.clone(), p.version.clone());
+                app.settings.update_job = Some(Task::spawn(ui.ctx(), move || start_update(b, v)));
             }
             if p.log.is_file() && button(ui, "Open the log").clicked() {
                 let _ = crate::updater::open_log(&p.log);

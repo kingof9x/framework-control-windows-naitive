@@ -129,11 +129,11 @@ install of the original project.
 
 **Settings → Updates** checks this repository's
 [releases](https://github.com/kingof9x/framework-control-windows-naitive/releases)
-for a newer version. **Install update** downloads the new installer and runs
-it: you'll see Windows' install progress and an administrator prompt, then
-Framework Control reopens by itself. Your settings are kept. If an update
-doesn't finish, the app says so next time it opens, with **Try again** and
-**Open the log**.
+for a newer version. **Install update** has the background service install
+it in the background: Framework Control closes, then reopens on the new
+version a minute or two later. Your settings are kept. If an update doesn't
+finish, the app says so next time it opens, with **Try again** and **Open
+the log**.
 
 Turn on **Keep up to date automatically** to have the background service
 check every 6 hours and install new versions silently, without a prompt. Its

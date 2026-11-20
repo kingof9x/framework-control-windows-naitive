@@ -39,6 +39,7 @@
             AllowSameVersionUpgrades='yes'
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
+        <PropertyRef Id='WIX_ACCOUNT_USERS'/>
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes'/>
 
         <!--
@@ -61,7 +62,15 @@
           restart were ever really needed, Windows Installer's own end-of-install prompt still offers
           to restart now or later.)
         -->
-        <Property Id='WixQuietExecCmdLine' Value='"taskkill.exe" /F /IM framework-control-app.exe'/>
+        <!--
+          The background service holds its own files open too. Windows Installer's in-use check then
+          stalls on it whenever the install shows any UI (double-clicking the MSI, or /passive), until
+          Windows gives up with "Setup Wizard ended prematurely" (only silent installs skip the check).
+          So the same step also stops the service; ServiceControl starts the new one at the end.
+          `net stop` waits for it to stop. The service's permissions below let the signed-in user
+          stop it, so this works even when this step doesn't run with admin rights.
+        -->
+        <Property Id='WixQuietExecCmdLine' Value='"[SystemFolder]cmd.exe" /c taskkill.exe /F /IM framework-control-app.exe &amp; net.exe stop FrameworkControlService'/>
         <CustomAction Id='CloseAppBeforeCheck' BinaryKey='WixCA' DllEntry='WixQuietExec' Execute='immediate' Return='ignore'/>
         <!-- On uninstall (not upgrades), also stop the touchpad helper the app runs per user from
              %LOCALAPPDATA%. It removes its own sign-in entry the next time it starts. -->
@@ -116,7 +125,12 @@
                             Start='auto'
                             Type='ownProcess'
                             ErrorControl='normal'
-                            Account='LocalSystem'/>
+                            Account='LocalSystem'>
+                            <!-- Let local users stop and start it, so the installer can stop it before
+                                 its in-use check (see CloseAppBeforeCheck). Adds to the default rights. -->
+                            <util:PermissionEx User='[WIX_ACCOUNT_USERS]' ServiceQueryStatus='yes' ServiceInterrogate='yes'
+                                ServiceStart='yes' ServiceStop='yes' ServiceEnumerateDependents='yes'/>
+                        </ServiceInstall>
                         <ServiceControl
                             Id='FrameworkControlServiceControl'
                             Name='FrameworkControlService'

@@ -3,6 +3,18 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.6.1
+
+- Fix: installing an update with a window ("Install update", or opening the
+  installer yourself) stopped with "Setup Wizard ended prematurely". Windows
+  Installer's check for files in use stalled on the running background
+  service. The installer now stops the service before that check, and lets
+  the signed-in user stop and start the service so it can.
+- **Install update** now has the background service install the update
+  silently, the way automatic updates do. Framework Control closes and
+  reopens on the new version a minute or two later. The app only runs the
+  installer itself if the service can't.
+
 ## 1.6.0
 
 - New **Touchpad** page: **Ignore touchpad clicks while typing**, the same
