@@ -29,6 +29,12 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  # A newer push to the same PR cancels its older, now pointless build.
+  # Runs on main (pushes and releases) are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   version:
     # Works out the release version: from the Run workflow box ("next" = last release + 1)
@@ -75,6 +81,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: native
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install GUI build deps
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libgl1-mesa-dev
       - name: Unit tests
@@ -91,11 +98,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+      - name: Faster settings for test builds (no version = not a release)
+        if: needs.version.outputs.version == ''
+        shell: bash
+        run: |
+          # Real releases keep the full release profile (LTO, few codegen units).
+          # Test builds (PRs, pushes to main) skip LTO and use more codegen units:
+          # same optimisation level, much shorter compile.
+          echo "CARGO_PROFILE_RELEASE_LTO=false" >> "$GITHUB_ENV"
+          echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             native
             service
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Set the release version
         if: needs.version.outputs.version != ''
         shell: bash
