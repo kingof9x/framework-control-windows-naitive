@@ -9,6 +9,9 @@ name: Build and release
 
 on:
   push:
+    # main only: other branches are built through their PR, so each push builds once, not twice.
+    branches: [main]
+    tags: ["v*"]
     paths:
       - "native/**"
       - "service/**"
@@ -19,6 +22,7 @@ on:
       - "native/**"
       - "service/**"
       - "tools/parity/**"
+      - ".github/workflows/native-release.yml"
   workflow_dispatch:
     inputs:
       version:
