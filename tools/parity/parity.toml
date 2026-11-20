@@ -77,11 +77,13 @@ native = "native/src/pages/power.rs"
 
 [api.getFrameworkToolVersions]
 status = "ported"
-native = "Settings > framework_tool version"
+native = "Settings > Updates > framework_tool (Check for updates)"
+note = "Only fetched when the user checks for updates (it asks GitHub), not on every visit to Settings."
 
 [api.switchFrameworkToolVersion]
 status = "ported"
-native = "Settings > framework_tool version"
+native = "Settings > Updates > framework_tool (Update to / version list)"
+note = "Upstream's 'Latest' (the service checks GitHub on every start) isn't offered: the app pins the installed version once and updates are manual."
 
 [api.getLogs]
 status = "ported"

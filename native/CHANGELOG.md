@@ -3,6 +3,19 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.6.2
+
+- `framework_tool` (the tool the service uses to talk to the laptop) is now
+  updated by hand, in **Settings → Updates**, instead of automatically.
+  - Before, the background service asked GitHub for the newest version every
+    time it started, and installed it. Framework Control now keeps
+    framework_tool on the version you have (switched once, nothing is
+    downloaded), so the service no longer contacts GitHub for it at startup.
+  - Opening Settings no longer asks GitHub for the version list either.
+  - **Check for updates** checks framework_tool's releases when you click it,
+    and offers **Update to …** when a newer one is out. After a check, any
+    listed version can be installed, for example to go back.
+
 ## 1.6.1
 
 - Fix: installing an update with a window ("Install update", or opening the

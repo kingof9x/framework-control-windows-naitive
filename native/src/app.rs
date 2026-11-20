@@ -245,6 +245,7 @@ impl eframe::App for App {
         let shared = self.shared.clone();
         let snap = shared.lock().unwrap();
         self.sync_drafts(&snap);
+        pages::settings::pin_framework_tool(self, &snap);
         let theme_pref = snap.config.as_ref().and_then(|c| c.ui.theme.clone()).unwrap_or_else(|| "system".into());
         crate::theme::apply(ctx, &theme_pref, &mut self.theme_state, &mut self.windows_look);
         // Follow changes to Windows' light/dark setting and accent colour.
