@@ -63,8 +63,14 @@
         -->
         <Property Id='WixQuietExecCmdLine' Value='"taskkill.exe" /F /IM framework-control-app.exe'/>
         <CustomAction Id='CloseAppBeforeCheck' BinaryKey='WixCA' DllEntry='WixQuietExec' Execute='immediate' Return='ignore'/>
+        <!-- On uninstall (not upgrades), also stop the touchpad helper the app runs per user from
+             %LOCALAPPDATA%. It removes its own sign-in entry the next time it starts. -->
+        <SetProperty Id='WixQuietExecCmdLine' Action='SetStopTouchpadCmd' Value='"taskkill.exe" /F /IM FrameworkControl-Touchpad.exe'
+                     After='CloseAppBeforeCheck' Sequence='execute'>REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE</SetProperty>
+        <CustomAction Id='StopTouchpadOnUninstall' BinaryKey='WixCA' DllEntry='WixQuietExec' Execute='immediate' Return='ignore'/>
         <InstallExecuteSequence>
             <Custom Action='CloseAppBeforeCheck' Before='InstallValidate'/>
+            <Custom Action='StopTouchpadOnUninstall' After='SetStopTouchpadCmd'>REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
         </InstallExecuteSequence>
 
         <Icon Id='AppIcon.ico' SourceFile='$(var.Stage)\app.ico'/>

@@ -45,6 +45,9 @@ pub enum Icon {
     Open,
     Check,
     Sliders,
+    Touchpad,
+    Tap,
+    CursorOff,
 }
 
 impl Icon {
@@ -83,6 +86,9 @@ impl Icon {
             Icon::Open => egui::include_image!("../assets/icons/open.svg"),
             Icon::Check => egui::include_image!("../assets/icons/checkmark_circle.svg"),
             Icon::Sliders => egui::include_image!("../assets/icons/slide_settings.svg"),
+            Icon::Touchpad => egui::include_image!("../assets/icons/cursor_click.svg"),
+            Icon::Tap => egui::include_image!("../assets/icons/tap_single.svg"),
+            Icon::CursorOff => egui::include_image!("../assets/icons/cursor_prohibited.svg"),
         }
     }
 

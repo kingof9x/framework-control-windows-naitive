@@ -17,6 +17,8 @@ mod plots;
 mod state;
 mod task;
 mod theme;
+mod tool_updates;
+mod touchpad;
 mod updater;
 mod version;
 mod widgets;
@@ -27,7 +29,7 @@ const DEFAULT_PORT: u16 = 8090;
 
 fn usage() -> ! {
     eprintln!(
-        "framework-control-app [--port <n>] [--demo] [--page overview|fans|power|battery|tools|settings]\n\n\
+        "framework-control-app [--port <n>] [--demo] [--page overview|fans|power|battery|touchpad|tools|settings]\n\n\
          --port   Port of the local Framework Control service (default: $FRAMEWORK_CONTROL_PORT or {DEFAULT_PORT})\n\
          --demo   Use built-in sample data instead of the service"
     );
@@ -48,6 +50,12 @@ fn port_from_winsw_xml(xml: &str) -> Option<u16> {
 }
 
 fn main() -> eframe::Result<()> {
+    // The background touchpad helper: no window, just input hooks (see touchpad.rs).
+    let raw: Vec<String> = std::env::args().skip(1).collect();
+    if raw.first().map(String::as_str) == Some(touchpad::GUARD_ARG) {
+        let app = raw.iter().position(|a| a == "--app").and_then(|i| raw.get(i + 1)).map(std::path::PathBuf::from);
+        std::process::exit(touchpad::run_guard(app));
+    }
     let mut port: Option<u16> = None;
     let mut demo = false;
     let mut page: Option<String> = None;
@@ -65,6 +73,10 @@ fn main() -> eframe::Result<()> {
         .or_else(|| std::env::var("FRAMEWORK_CONTROL_PORT").ok().and_then(|v| v.parse().ok()))
         .or_else(installed_service_port)
         .unwrap_or(DEFAULT_PORT);
+
+    if !demo {
+        pages::touchpad::on_app_start();
+    }
 
     let backend: Arc<dyn api::Backend> = if demo {
         Arc::new(demo::DemoBackend::new())

@@ -3,6 +3,27 @@
 Versions here are this fork's release line. The upstream service version the
 fork is synced to is recorded in `tools/parity/parity.toml`.
 
+## 1.6.0
+
+- New **Touchpad** page: **Ignore touchpad clicks while typing**, the same
+  idea as [TouchFreeze](https://github.com/macleod-ee/touchfreeze), built in.
+  For a moment after each key press, clicks and taps are ignored, so a palm on
+  the touchpad doesn't click and move the text cursor while you type.
+  - Adjustable delay (0.2 to 2 seconds, 0.7 s by default), and an option to
+    ignore scrolling too.
+  - Clicks with Ctrl, Shift, Alt or the Windows key held still work, and the
+    pointer always moves.
+  - It runs as a small background helper that starts with Windows, so it keeps
+    working with the window closed. Updates don't need to close it.
+  - A "Try it" box on the page to test it.
+- **Tools** checks GitHub for new versions of White Rabbit and Framework 16
+  Keyboard Control (every 6 hours while the app is open, or **Check now**).
+  - **Update to …** installs the new version: White Rabbit's installer opens;
+    Keyboard Control's exe is replaced in place, even while it's running.
+  - The Overview's tool cards say when an update is available.
+- Fix: choosing a tool's location on the Tools page could undo other saved
+  app settings (like the chart view).
+
 ## 1.5.0
 
 - Cleaner, readable charts:

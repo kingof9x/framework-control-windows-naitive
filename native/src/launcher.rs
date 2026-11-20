@@ -13,6 +13,14 @@ pub struct Action {
     pub hint: &'static str,
 }
 
+/// How a new version of a tool is installed.
+pub enum UpdateKind {
+    /// Run the release's setup program (White Rabbit). Portable copies get the release page instead.
+    Installer { asset: &'static str },
+    /// The release is the exe itself (Framework 16 Keyboard Control): swap it in place.
+    Exe { asset: &'static str },
+}
+
 pub struct ToolDef {
     pub id: &'static str,
     pub name: &'static str,
@@ -26,6 +34,9 @@ pub struct ToolDef {
     pub download_label: &'static str,
     pub download_url: &'static str,
     pub project_url: &'static str,
+    /// GitHub "owner/name", for update checks.
+    pub repo: &'static str,
+    pub update: UpdateKind,
 }
 
 pub const TOOLS: &[ToolDef] = &[
@@ -50,6 +61,8 @@ pub const TOOLS: &[ToolDef] = &[
         download_label: "Download installer",
         download_url: "https://github.com/kingof9x/white-rabbit-framework-matrix/releases/latest/download/WhiteRabbit-setup.exe",
         project_url: "https://github.com/kingof9x/white-rabbit-framework-matrix",
+        repo: "kingof9x/white-rabbit-framework-matrix",
+        update: UpdateKind::Installer { asset: "WhiteRabbit-setup.exe" },
     },
     ToolDef {
         id: "f16-lights",
@@ -70,6 +83,8 @@ pub const TOOLS: &[ToolDef] = &[
         download_label: "Get the latest build",
         download_url: "https://github.com/kingof9x/framework-16-keyboard-customization/releases/latest",
         project_url: "https://github.com/kingof9x/framework-16-keyboard-customization",
+        repo: "kingof9x/framework-16-keyboard-customization",
+        update: UpdateKind::Exe { asset: "framework-16-keyboard-control.exe" },
     },
 ];
 
@@ -87,6 +102,12 @@ pub struct LocalSettings {
     /// An update the app started and hasn't seen finish yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_update: Option<crate::updater::PendingUpdate>,
+    /// "Ignore touchpad clicks while typing".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub touchpad: Option<crate::touchpad::TouchpadSettings>,
+    /// Versions of the tools that Framework Control updated itself (by tool id).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tool_versions: BTreeMap<String, crate::tool_updates::Recorded>,
 }
 
 fn settings_path() -> Option<PathBuf> {
@@ -124,6 +145,15 @@ pub enum Found {
     /// Found in a standard location.
     Detected(PathBuf),
     Missing,
+}
+
+impl ToolDef {
+    /// The release file an update downloads.
+    pub fn update_asset(&self) -> &'static str {
+        match self.update {
+            UpdateKind::Installer { asset } | UpdateKind::Exe { asset } => asset,
+        }
+    }
 }
 
 impl Found {
