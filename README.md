@@ -1,8 +1,9 @@
 # Framework Control for Windows
 
 A lightweight native Windows app for controlling your Framework laptop: fan
-curves, power limits, battery charging, and live temperatures. It's also a
-launcher for your other Framework 16 tools. No browser needed.
+curves, power limits, battery charging, live temperatures, and ignoring
+touchpad clicks while you type. It's also a launcher for your other Framework
+16 tools. No browser needed.
 
 It looks and works like the Windows 11 Settings app, in the same style as
 [White Rabbit](https://github.com/kingof9x/white-rabbit-framework-matrix): it
@@ -63,6 +64,13 @@ isn't counted.</sub>
   limits. The RyzenAdj helper these need installs in one click from the app.
 - **Battery**: charge limit, charge-rate limit with an SoC threshold, health,
   cycles, live power, and up to 7 days of history.
+- **Touchpad**: ignore touchpad clicks while typing, so a palm on the
+  touchpad doesn't click and move the text cursor. Clicks are ignored for a
+  moment after each key press (0.7 s by default, adjustable), optionally
+  scrolling too. Ctrl/Shift/Alt/Windows-key clicks still work. The same idea
+  as [TouchFreeze](https://github.com/macleod-ee/touchfreeze), built in: a
+  tiny background helper starts with Windows and keeps working with the
+  window closed.
 - **Tools**: launch your other Framework 16 tools:
   - [**White Rabbit**](https://github.com/kingof9x/white-rabbit-framework-matrix),
     the LED Matrix app: open it, edit the panel layout, or jump to games and
@@ -71,8 +79,10 @@ isn't counted.</sub>
     for keyboard and macropad lighting.
 
   The page shows whether each tool is installed or running, links to the
-  download when it isn't, and links to each tool's GitHub project. Installed
-  tools also get one-click cards at the top of the Overview.
+  download when it isn't, and links to each tool's GitHub project. It also
+  checks each project's GitHub releases for new versions and installs them
+  with one click. Installed tools also get one-click cards at the top of the
+  Overview.
 - **Settings**: automatic updates, light or dark mode in your Windows accent
   colour (or follow Windows), turning features on or off (this also stops
   their background work), `framework_tool` version switching, the
@@ -87,8 +97,10 @@ isn't counted.</sub>
 | ![Fans](docs/screenshots/fans.png) | ![Fan 2 tab](docs/screenshots/fan2.png) |
 | **Battery: charge limits and history** | **Power: TDP and thermal limits** |
 | ![Battery](docs/screenshots/battery.png) | ![Power](docs/screenshots/power.png) |
-| **Tools: launch White Rabbit and Framework 16 Keyboard Control** | **Calibration wizard** |
-| ![Tools](docs/screenshots/tools.png) | ![Calibration](docs/screenshots/calibrate.png) |
+| **Tools: launch and update White Rabbit and Framework 16 Keyboard Control** | **Touchpad: ignore clicks while typing** |
+| ![Tools](docs/screenshots/tools.png) | ![Touchpad](docs/screenshots/touchpad.png) |
+| **Calibration wizard** | |
+| ![Calibration](docs/screenshots/calibrate.png) | |
 | **Settings: updates, theme, features, framework_tool** | **Light mode** |
 | ![Settings](docs/screenshots/settings.png) | ![Light theme](docs/screenshots/light.png) |
 
@@ -130,7 +142,8 @@ installer log is at `%ProgramData%\FrameworkControl\update-install.log`.
 ### Uninstall
 
 Uninstall **Framework Control** from Settings → Apps. This removes the
-service, the app, the shortcuts and the saved settings.
+service, the app, the shortcuts and the saved settings. It also stops the touchpad
+helper, which takes itself out of startup the next time you sign in.
 
 ## How it works
 
@@ -207,7 +220,9 @@ GitHub release ([workflow](.github/workflows/native-release.yml)). See
 
 ## License and disclaimer
 
-MIT licensed (see [LICENSE](LICENSE)), like the original project. Icons are
+MIT licensed (see [LICENSE](LICENSE)), like the original project. The
+touchpad feature is written from scratch, after the idea of TouchFreeze (GPL),
+and shares no code with it. Icons are
 Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons)
 (MIT, see `native/assets/icons/LICENSE-fluentui-system-icons.txt`), the same
 set White Rabbit uses.

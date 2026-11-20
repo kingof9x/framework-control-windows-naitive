@@ -4,3 +4,4 @@ pub mod overview;
 pub mod power;
 pub mod settings;
 pub mod tools;
+pub mod touchpad;

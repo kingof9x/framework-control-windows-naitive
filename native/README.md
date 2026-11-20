@@ -45,6 +45,8 @@ FC_DEMO_SCENE=calibrate cargo run -- --demo --page fans
 | `src/task.rs` | One-off background jobs (installs, log fetches) |
 | `src/app.rs` | Window shell, navigation, feature toggles, autosaving drafts |
 | `src/pages/*.rs` | Overview, Fans, Power, Battery, Tools, Settings |
+| `src/touchpad.rs` | Ignore touchpad clicks while typing: the background helper (`--touchpad-guard`, low-level keyboard and mouse hooks), run from a per-user copy in `%LOCALAPPDATA%\FrameworkControl\` and started at sign-in from `HKCU\…\Run` |
+| `src/tool_updates.rs` | Update checks and installs for the companion tools, from their GitHub releases |
 | `src/launcher.rs` | Companion tools (White Rabbit, Framework 16 Keyboard Control): where to find them, running check, launching, remembered locations (`%APPDATA%\FrameworkControl\native-app.json`) |
 | `src/plots.rs` | Graphs and the interactive fan-curve editor |
 | `src/calibration.rs` | Fan calibration wizard (same procedure as the web UI) |

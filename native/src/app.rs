@@ -20,18 +20,20 @@ pub enum Page {
     Fans,
     Power,
     Battery,
+    Touchpad,
     Tools,
     Settings,
 }
 
 impl Page {
-    const ALL: [Page; 6] = [Page::Overview, Page::Fans, Page::Power, Page::Battery, Page::Tools, Page::Settings];
+    const ALL: [Page; 7] = [Page::Overview, Page::Fans, Page::Power, Page::Battery, Page::Touchpad, Page::Tools, Page::Settings];
     fn label(self) -> &'static str {
         match self {
             Page::Overview => "Overview",
             Page::Fans => "Fans",
             Page::Power => "Power",
             Page::Battery => "Battery",
+            Page::Touchpad => "Touchpad",
             Page::Tools => "Tools",
             Page::Settings => "Settings",
         }
@@ -42,6 +44,7 @@ impl Page {
             Page::Fans => Icon::Fan,
             Page::Power => Icon::Power,
             Page::Battery => Icon::Battery,
+            Page::Touchpad => Icon::Touchpad,
             Page::Tools => Icon::Tools,
             Page::Settings => Icon::Settings,
         }
@@ -53,7 +56,7 @@ impl Page {
             Page::Fans => Some(PanelId::Fan),
             Page::Power => Some(PanelId::Power),
             Page::Battery => Some(PanelId::Battery),
-            Page::Tools | Page::Settings => None,
+            Page::Touchpad | Page::Tools | Page::Settings => None,
         }
     }
 }
@@ -101,6 +104,7 @@ pub struct App {
     pub power: pages::power::PowerUi,
     pub settings: pages::settings::SettingsUi,
     pub tools: pages::tools::ToolsUi,
+    pub touchpad: pages::touchpad::TouchpadUi,
     pub close_at: Option<Instant>,
 }
 
@@ -113,10 +117,12 @@ impl App {
             "fans" => Page::Fans,
             "power" => Page::Power,
             "battery" => Page::Battery,
+            "touchpad" => Page::Touchpad,
             "tools" => Page::Tools,
             "settings" => Page::Settings,
             _ => Page::Overview,
         };
+        let demo = source == "demo data";
         Self {
             shared,
             tx,
@@ -130,7 +136,8 @@ impl App {
             fans: Default::default(),
             power: Default::default(),
             settings: Default::default(),
-            tools: Default::default(),
+            tools: pages::tools::ToolsUi::new(demo),
+            touchpad: pages::touchpad::TouchpadUi::new(demo),
             close_at: None,
         }
     }
@@ -264,8 +271,8 @@ impl eframe::App for App {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
                     ui.set_max_width(ui.available_width() - 16.0);
-                    // Tools don't need the service, so they stay usable while it's down.
-                    if !snap.connected && snap.health.is_none() && self.page != Page::Tools {
+                    // Tools and Touchpad don't need the service, so they stay usable while it's down.
+                    if !snap.connected && snap.health.is_none() && !matches!(self.page, Page::Tools | Page::Touchpad) {
                         disconnected(ui, &snap, &self.source);
                         return;
                     }
@@ -282,6 +289,7 @@ impl eframe::App for App {
                         Page::Fans => pages::fans::show(self, ui, &snap),
                         Page::Power => pages::power::show(self, ui, &snap),
                         Page::Battery => pages::battery::show(self, ui, &snap),
+                        Page::Touchpad => pages::touchpad::show(self, ui),
                         Page::Tools => pages::tools::show(self, ui),
                         Page::Settings => pages::settings::show(self, ui, &snap),
                     }
