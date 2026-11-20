@@ -254,6 +254,8 @@ pub fn reopen_after_update() -> Result<(), String> {
         );
         Command::new("powershell.exe")
             .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", &script])
+            // Not from the install folder, which the installer replaces.
+            .current_dir(std::env::temp_dir())
             .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
             .spawn()
             .map(|_| ())

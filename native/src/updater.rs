@@ -1,7 +1,8 @@
-//! The app's own "Install update": download the newest installer from this repo's GitHub releases and
-//! run it where you can see it (Windows' install progress window and the administrator prompt), instead
-//! of asking the background service to install silently. If an update doesn't finish, the app finds
-//! out the next time it starts and offers to try again or open the installer's log.
+//! "Install update". Normally the background service installs it, silently as SYSTEM (see
+//! `pages::settings::start_update`). When the service can't, the app downloads the newest installer from
+//! this repo's GitHub releases and runs it itself, with Windows' progress window and administrator
+//! prompt. Either way, if an update doesn't finish, the app finds out the next time it starts and offers
+//! to try again or open the installer's log.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -36,6 +37,12 @@ fn agent() -> ureq::Agent {
         .timeout_connect(Duration::from_secs(10))
         .timeout(Duration::from_secs(600))
         .build()
+}
+
+/// An update the background service started: it downloads to and logs in `%ProgramData%\FrameworkControl`.
+pub fn service_update(version: String) -> PendingUpdate {
+    let dir = PathBuf::from(std::env::var_os("PROGRAMDATA").unwrap_or_else(|| r"C:\ProgramData".into())).join("FrameworkControl");
+    PendingUpdate { version: version.trim_start_matches('v').to_string(), msi: dir.join("update.msi"), log: dir.join("update-install.log") }
 }
 
 /// Download the latest release's installer and start it. Returns what was started.
@@ -78,6 +85,8 @@ pub fn download_and_run() -> Result<PendingUpdate, String> {
 pub fn run_installer(msi: &Path, log: Option<&Path>) -> Result<(), String> {
     let mut cmd = Command::new("msiexec.exe");
     cmd.arg("/i").arg(msi);
+    // Not from the install folder (this app's working directory), which the installer replaces.
+    cmd.current_dir(std::env::temp_dir());
     if let Some(log) = log {
         cmd.args(["/passive", "/norestart", "/l*v"]).arg(log);
     }
