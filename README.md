@@ -85,7 +85,8 @@ isn't counted.</sub>
   Overview.
 - **Settings**: automatic updates, light or dark mode in your Windows accent
   colour (or follow Windows), turning features on or off (this also stops
-  their background work), `framework_tool` version switching, the
+  their background work), manual `framework_tool` updates (it's only
+  checked when you click **Check for updates**, never at startup), the
   service log viewer, and device info.
 
 ## Screenshots

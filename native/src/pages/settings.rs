@@ -35,6 +35,8 @@ pub struct SettingsUi {
     tool_fetch: Option<Task<FrameworkToolVersions>>,
     tool_switch: Option<Task<()>>,
     tool_msg: Option<(String, bool)>,
+    /// framework_tool was switched off "Latest" (once per run).
+    pinned_tool: bool,
     logs_open: bool,
     logs: Option<Result<String, String>>,
     logs_job: Option<Task<String>>,
@@ -96,6 +98,7 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
 
     section(ui, "Updates");
     updates(app, ui, snap, &cfg);
+    framework_tool(app, ui, snap);
 
     section(ui, "Features");
     for (id, icon, label, help) in [
@@ -120,7 +123,6 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
     });
 
     section(ui, "Hardware");
-    framework_tool(app, ui, &cfg);
     if card(ui, Some(Icon::Logs), "Service logs", "The last 500 lines from the background service.", true, |_| {}).clicked() {
         app.settings.logs_open = true;
         fetch_logs(app, ui.ctx());
@@ -175,7 +177,7 @@ pub fn show(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
     }
 }
 
-fn poll_jobs(app: &mut App, ctx: &egui::Context) {
+fn poll_jobs(app: &mut App, _ctx: &egui::Context) {
     let s = &mut app.settings;
     if let Some(r) = finished(&mut s.update_job) {
         s.update_msg = Some(match r {
@@ -205,7 +207,7 @@ fn poll_jobs(app: &mut App, ctx: &egui::Context) {
     }
     if let Some(r) = finished(&mut s.tool_switch) {
         s.tool_msg = Some(match r {
-            Ok(()) => ("Switched. The service is restarting framework_tool.".into(), false),
+            Ok(()) => ("Done. The service is restarting framework_tool.".into(), false),
             Err(e) => (e, true),
         });
         s.tool_versions = None;
@@ -213,10 +215,6 @@ fn poll_jobs(app: &mut App, ctx: &egui::Context) {
     }
     if let Some(r) = finished(&mut s.logs_job) {
         s.logs = Some(r);
-    }
-    if s.tool_versions.is_none() && s.tool_fetch.is_none() && s.tool_switch.is_none() && s.tool_msg.is_none() {
-        let b = app.backend.clone();
-        s.tool_fetch = Some(Task::spawn(ctx, move || b.framework_tool_versions()));
     }
 }
 
@@ -249,6 +247,7 @@ fn updates(app: &mut App, ui: &mut Ui, snap: &Snapshot, cfg: &Config) {
                     });
                 } else if button(ui, "Check for updates").clicked() {
                     app.refresh();
+                    check_framework_tool(&mut app.settings, app.backend.clone(), ui.ctx());
                 }
             });
             let mut auto = cfg.updates.auto_install;
@@ -326,49 +325,102 @@ fn unfinished_update(app: &mut App, ui: &mut Ui) {
     }
 }
 
-fn framework_tool(app: &mut App, ui: &mut Ui, cfg: &Config) {
-    let s = &mut app.settings;
-    let busy = s.tool_switch.is_some();
-    let mut choice: Option<Option<String>> = None;
-    let mut help = "The tool the service uses to talk to the laptop. Picking a version installs it.".to_string();
-    if let Some(v) = &s.tool_versions {
-        let current_tag = v.current_version.as_ref().map(|c| if c.starts_with('v') { c.clone() } else { format!("v{c}") });
-        if cfg.framework_tool.latest && v.latest_tag.is_some() && current_tag.is_some() && v.latest_tag != current_tag {
-            help = format!("Latest is chosen but {} is running.", current_tag.clone().unwrap_or_default());
-        }
+/// Ask GitHub (through the service) which framework_tool versions exist. Only on request.
+fn check_framework_tool(s: &mut SettingsUi, b: std::sync::Arc<dyn Backend>, ctx: &egui::Context) {
+    if s.tool_fetch.is_none() {
+        s.tool_msg = None;
+        s.tool_fetch = Some(Task::spawn(ctx, move || b.framework_tool_versions()));
     }
-    card(ui, Some(Icon::Board), "framework_tool version", &help, false, |ui| match &s.tool_versions {
-        None => {
+}
+
+/// The framework_tool version normalised as a tag ("v0.4.5").
+fn as_tag(v: &str) -> String {
+    if v.starts_with('v') { v.to_string() } else { format!("v{v}") }
+}
+
+/// framework_tool, the CLI the service uses to talk to the laptop. It's kept on a chosen version and only
+/// checked for updates when asked (see `pin_framework_tool`).
+fn framework_tool(app: &mut App, ui: &mut Ui, snap: &Snapshot) {
+    let backend = app.backend.clone();
+    let s = &mut app.settings;
+    let busy = s.tool_switch.is_some() || s.tool_fetch.is_some();
+    let installed = snap
+        .versions
+        .as_ref()
+        .and_then(|v| v.tool_version.clone())
+        .or_else(|| s.tool_versions.as_ref().and_then(|v| v.current_version.clone()))
+        .map(|v| as_tag(&v));
+    let latest = s.tool_versions.as_ref().and_then(|v| v.latest_tag.clone());
+    let newer = match (&latest, &installed) {
+        (Some(l), Some(i)) if is_newer(l, i) => Some(l.clone()),
+        _ => None,
+    };
+    let help = match (&installed, &s.tool_versions, &newer) {
+        (_, _, Some(l)) => format!("{l} is available (you have {}).", installed.clone().unwrap_or_else(|| "an unknown version".into())),
+        (Some(i), Some(_), None) => format!("{i}, the newest version."),
+        (Some(i), None, None) => format!("{i}. The tool the service uses to talk to the laptop; it's only updated when you choose."),
+        (None, _, None) => "The tool the service uses to talk to the laptop.".to_string(),
+    };
+    let mut choice: Option<String> = None;
+    let mut check = false;
+    card(ui, Some(Icon::Board), "framework_tool", &help, false, |ui| {
+        if busy {
             ui.spinner();
         }
-        Some(v) => {
-            let current_tag = v.current_version.as_ref().map(|c| if c.starts_with('v') { c.clone() } else { format!("v{c}") });
-            let latest_label = format!("Latest{}", v.latest_tag.as_ref().map(|t| format!(" ({t})")).unwrap_or_default());
-            let selected = if cfg.framework_tool.latest { latest_label.clone() } else { current_tag.clone().unwrap_or("Unknown".into()) };
-            if busy {
-                ui.spinner();
+        ui.add_enabled_ui(!busy, |ui| {
+            if let Some(l) = &newer {
+                if accent_button(ui, &format!("Update to {l}")).clicked() {
+                    choice = Some(l.clone());
+                }
             }
-            ui.add_enabled_ui(!busy, |ui| {
-                egui::ComboBox::from_id_salt("tool").selected_text(selected).width(200.0).show_ui(ui, |ui| {
-                    if ui.selectable_label(cfg.framework_tool.latest, &latest_label).clicked() {
-                        choice = Some(None);
-                    }
-                    for t in &v.available_tags {
-                        let sel = !cfg.framework_tool.latest && current_tag.as_deref() == Some(t);
-                        if ui.selectable_label(sel, t).clicked() {
-                            choice = Some(Some(t.clone()));
+            match &s.tool_versions {
+                // After a check: any listed version can be installed (e.g. to go back).
+                Some(v) if !v.available_tags.is_empty() => {
+                    let selected = installed.clone().unwrap_or_else(|| "Choose a version".into());
+                    egui::ComboBox::from_id_salt("tool").selected_text(selected).width(140.0).show_ui(ui, |ui| {
+                        for t in &v.available_tags {
+                            if ui.selectable_label(installed.as_deref() == Some(t.as_str()), t).clicked() && installed.as_deref() != Some(t.as_str()) {
+                                choice = Some(t.clone());
+                            }
                         }
+                    });
+                }
+                _ => {
+                    if button(ui, "Check for updates").clicked() {
+                        check = true;
                     }
-                });
-            });
-        }
+                }
+            }
+        });
     });
-    if let Some(c) = choice {
-        let b = app.backend.clone();
+    if check {
+        check_framework_tool(s, backend.clone(), ui.ctx());
+    }
+    if let Some(tag) = choice {
         s.tool_msg = None;
-        s.tool_switch = Some(Task::spawn(ui.ctx(), move || b.switch_framework_tool(c)));
+        s.tool_versions = None;
+        s.tool_switch = Some(Task::spawn(ui.ctx(), move || backend.switch_framework_tool(Some(tag))));
     }
     status_line(ui, &s.tool_msg);
+}
+
+/// The service's "Latest" setting looks up framework_tool's newest release on GitHub every time it starts.
+/// Updates are manual in this app instead, so switch it once to the installed version: nothing is
+/// downloaded, and the service stops checking.
+pub fn pin_framework_tool(app: &mut App, snap: &Snapshot) {
+    if app.settings.pinned_tool || app.source == "demo data" {
+        return;
+    }
+    let Some(cfg) = &snap.config else { return };
+    let Some(v) = snap.versions.as_ref().and_then(|v| v.tool_version.clone()) else { return };
+    app.settings.pinned_tool = true;
+    if cfg.framework_tool.latest {
+        let b = app.backend.clone();
+        let tag = as_tag(&v);
+        std::thread::spawn(move || {
+            let _ = b.switch_framework_tool(Some(tag));
+        });
+    }
 }
 
 fn fetch_logs(app: &mut App, ctx: &egui::Context) {
